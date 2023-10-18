@@ -146,3 +146,5 @@ require (
 	gotest.tools/v3 v3.5.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593 => github.com/ajsutton/pebble v0.0.0-20231018040454-6e555bd6eade
