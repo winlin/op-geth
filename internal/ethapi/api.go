@@ -1686,36 +1686,38 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 
 	// Create an initial tracer
 	prevTracer := logger.NewAccessListTracer(nil, args.from(), to, precompiles)
-	if args.AccessList != nil {
-		prevTracer = logger.NewAccessListTracer(*args.AccessList, args.from(), to, precompiles)
-	}
-	for {
-		// Retrieve the current access list to expand
-		accessList := prevTracer.AccessList()
-		log.Trace("Creating access list", "input", accessList)
+	// if args.AccessList != nil {
+	// 	prevTracer = logger.NewAccessListTracer(*args.AccessList, args.from(), to, precompiles)
+	// }
+	// for {
+	// Retrieve the current access list to expand
+	accessList := prevTracer.AccessList()
+	// log.Trace("Creating access list", "input", accessList)
 
-		// Copy the original db so we don't modify it
-		statedb := db.Copy()
-		// Set the accesslist to the last al
-		args.AccessList = &accessList
-		msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee)
-		if err != nil {
-			return nil, 0, nil, err
-		}
-
-		// Apply the transaction with the access list tracer
-		tracer := logger.NewAccessListTracer(accessList, args.from(), to, precompiles)
-		config := vm.Config{Tracer: tracer, NoBaseFee: true}
-		vmenv := b.GetEVM(ctx, msg, statedb, header, &config, nil)
-		res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
-		if err != nil {
-			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
-		}
-		if tracer.Equal(prevTracer) {
-			return accessList, res.UsedGas, res.Err, nil
-		}
-		prevTracer = tracer
+	// Copy the original db so we don't modify it
+	statedb := db.Copy()
+	// Set the accesslist to the last al
+	// args.AccessList = &accessList
+	msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee)
+	if err != nil {
+		return nil, 0, nil, err
 	}
+
+	// Apply the transaction with the access list tracer
+	// tracer := logger.NewAccessListTracer(accessList, args.from(), to, precompiles)
+	config := vm.Config{NoBaseFee: true}
+	vmenv := b.GetEVM(ctx, msg, statedb, header, &config, nil)
+	res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
+	}
+
+	return accessList, res.UsedGas, res.Err, nil
+	// if tracer.Equal(prevTracer) {
+	// 	return accessList, res.UsedGas, res.Err, nil
+	// }
+	// prevTracer = tracer
+	// }
 }
 
 // TransactionAPI exposes methods for reading and creating transaction data.
