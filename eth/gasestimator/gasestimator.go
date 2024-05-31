@@ -127,58 +127,60 @@ func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uin
 	// is those that explicitly check gas remaining in order to execute within a
 	// given limit, but we probably don't want to return the lowest possible gas
 	// limit for these cases anyway.
-	lo = result.UsedGas - 1
+	// lo = result.UsedGas - 1
 
-	// There's a fairly high chance for the transaction to execute successfully
-	// with gasLimit set to the first execution's usedGas + gasRefund. Explicitly
-	// check that gas amount and use as a limit for the binary search.
-	optimisticGasLimit := (result.UsedGas + result.RefundedGas + params.CallStipend) * 64 / 63
-	if optimisticGasLimit < hi {
-		failed, _, err = execute(ctx, call, opts, optimisticGasLimit)
-		if err != nil {
-			// This should not happen under normal conditions since if we make it this far the
-			// transaction had run without error at least once before.
-			log.Error("Execution error in estimate gas", "err", err)
-			return 0, nil, err
-		}
-		if failed {
-			lo = optimisticGasLimit
-		} else {
-			hi = optimisticGasLimit
-		}
-	}
-	// Binary search for the smallest gas limit that allows the tx to execute successfully.
-	for lo+1 < hi {
-		if opts.ErrorRatio > 0 {
-			// It is a bit pointless to return a perfect estimation, as changing
-			// network conditions require the caller to bump it up anyway. Since
-			// wallets tend to use 20-25% bump, allowing a small approximation
-			// error is fine (as long as it's upwards).
-			if float64(hi-lo)/float64(hi) < opts.ErrorRatio {
-				break
-			}
-		}
-		mid := (hi + lo) / 2
-		if mid > lo*2 {
-			// Most txs don't need much higher gas limit than their gas used, and most txs don't
-			// require near the full block limit of gas, so the selection of where to bisect the
-			// range here is skewed to favor the low side.
-			mid = lo * 2
-		}
-		failed, _, err = execute(ctx, call, opts, mid)
-		if err != nil {
-			// This should not happen under normal conditions since if we make it this far the
-			// transaction had run without error at least once before.
-			log.Error("Execution error in estimate gas", "err", err)
-			return 0, nil, err
-		}
-		if failed {
-			lo = mid
-		} else {
-			hi = mid
-		}
-	}
-	return hi, nil, nil
+	return result.UsedGas + result.RefundedGas, nil, nil
+
+	// // There's a fairly high chance for the transaction to execute successfully
+	// // with gasLimit set to the first execution's usedGas + gasRefund. Explicitly
+	// // check that gas amount and use as a limit for the binary search.
+	// optimisticGasLimit := (result.UsedGas + result.RefundedGas + params.CallStipend) * 64 / 63
+	// if optimisticGasLimit < hi {
+	// 	failed, _, err = execute(ctx, call, opts, optimisticGasLimit)
+	// 	if err != nil {
+	// 		// This should not happen under normal conditions since if we make it this far the
+	// 		// transaction had run without error at least once before.
+	// 		log.Error("Execution error in estimate gas", "err", err)
+	// 		return 0, nil, err
+	// 	}
+	// 	if failed {
+	// 		lo = optimisticGasLimit
+	// 	} else {
+	// 		hi = optimisticGasLimit
+	// 	}
+	// }
+	// // Binary search for the smallest gas limit that allows the tx to execute successfully.
+	// for lo+1 < hi {
+	// 	if opts.ErrorRatio > 0 {
+	// 		// It is a bit pointless to return a perfect estimation, as changing
+	// 		// network conditions require the caller to bump it up anyway. Since
+	// 		// wallets tend to use 20-25% bump, allowing a small approximation
+	// 		// error is fine (as long as it's upwards).
+	// 		if float64(hi-lo)/float64(hi) < opts.ErrorRatio {
+	// 			break
+	// 		}
+	// 	}
+	// 	mid := (hi + lo) / 2
+	// 	if mid > lo*2 {
+	// 		// Most txs don't need much higher gas limit than their gas used, and most txs don't
+	// 		// require near the full block limit of gas, so the selection of where to bisect the
+	// 		// range here is skewed to favor the low side.
+	// 		mid = lo * 2
+	// 	}
+	// 	failed, _, err = execute(ctx, call, opts, mid)
+	// 	if err != nil {
+	// 		// This should not happen under normal conditions since if we make it this far the
+	// 		// transaction had run without error at least once before.
+	// 		log.Error("Execution error in estimate gas", "err", err)
+	// 		return 0, nil, err
+	// 	}
+	// 	if failed {
+	// 		lo = mid
+	// 	} else {
+	// 		hi = mid
+	// 	}
+	// }
+	// return hi, nil, nil
 }
 
 // execute is a helper that executes the transaction under a given gas limit and
