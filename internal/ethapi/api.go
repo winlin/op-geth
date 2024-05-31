@@ -1712,6 +1712,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
 	}
 
+	log.Info("AccessList", "UsedGas", res.UsedGas, "Refund", res.RefundedGas)
 	return accessList, res.UsedGas + res.RefundedGas, res.Err, nil
 	// if tracer.Equal(prevTracer) {
 	// 	return accessList, res.UsedGas, res.Err, nil
