@@ -329,7 +329,7 @@ func (evm *EVM) Call2(caller ContractRef, addr common.Address, input []byte, gas
 			// The depth-check is already done, and precompiles handled above
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
-			ret, err = evm.interpreter.Run(contract, input, false)
+			ret, err = evm.interpreter.Run2(contract, input, false)
 			gas = contract.Gas
 		}
 	}
