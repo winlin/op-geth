@@ -387,13 +387,17 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 		}
 
 		if op.String() == "CALL" {
-			operation.execute = opCall2
-		}
-
-		// execute the operation
-		res, err = operation.execute(&pc, in, callContext)
-		if err != nil {
-			break
+			// execute the operation
+			res, err = opCall2(&pc, in, callContext)
+			if err != nil {
+				break
+			}
+		} else {
+			// execute the operation
+			res, err = operation.execute(&pc, in, callContext)
+			if err != nil {
+				break
+			}
 		}
 		pc++
 
