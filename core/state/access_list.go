@@ -18,11 +18,25 @@ package state
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type accessList struct {
 	addresses map[common.Address]int
 	slots     []map[common.Hash]struct{}
+}
+
+func (al *accessList) Dump() {
+	for addr, _ := range al.addresses {
+		log.Info("accessList", "addr", addr.String())
+	}
+
+	for i, slot := range al.slots {
+		log.Info("slots", "index", i, "length", len(slot))
+		for addr, _ := range slot {
+			log.Info("slots", "addr", addr.String())
+		}
+	}
 }
 
 // ContainsAddress returns true if the address is in the access list.

@@ -1636,7 +1636,9 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 	}
 
 	header, err := headerByNumberOrHash(ctx, s.b, bNrOrHash)
+	log.Info("createAccessList", "header", fmt.Sprintf("%#v", header))
 	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		log.Info("createAccessList", "IsOptimismPreBedrock", "true")
 		if s.b.HistoricalRPCService() != nil {
 			var res accessListResult
 			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_createAccessList", args, blockNrOrHash)
@@ -1695,7 +1697,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 	// log.Trace("Creating access list", "input", accessList)
 
 	// Copy the original db so we don't modify it
-	statedb := db.Copy()
+	statedb := db.Copy2()
 	// Set the accesslist to the last al
 	// args.AccessList = &accessList
 	msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee)
@@ -1703,16 +1705,19 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		return nil, 0, nil, err
 	}
 
+	log.Info("AccessList", "msg", fmt.Sprintf("%#v", msg))
 	// Apply the transaction with the access list tracer
 	// tracer := logger.NewAccessListTracer(accessList, args.from(), to, precompiles)
 	config := vm.Config{NoBaseFee: false}
+	log.Info("AccessList", "config", fmt.Sprintf("%#v", config))
 	vmenv := b.GetEVM(ctx, msg, statedb, header, &config, nil)
+	log.Info("AccessList", "vmenv", fmt.Sprintf("%#v", vmenv))
 	res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
 	if err != nil {
 		return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
 	}
 
-	log.Info("AccessList", "UsedGas", res.UsedGas, "Refund", res.RefundedGas)
+	log.Info("AccessList", "res", fmt.Sprintf("%#v", res))
 	return accessList, res.UsedGas + res.RefundedGas, res.Err, nil
 	// if tracer.Equal(prevTracer) {
 	// 	return accessList, res.UsedGas, res.Err, nil

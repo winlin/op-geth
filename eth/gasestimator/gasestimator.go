@@ -212,7 +212,7 @@ func run(ctx context.Context, call *core.Message, opts *Options) (*core.Executio
 		msgContext = core.NewEVMTxContext(call)
 		evmContext = core.NewEVMBlockContext(opts.Header, opts.Chain, nil, opts.Config, opts.State)
 
-		dirtyState = opts.State.Copy()
+		dirtyState = opts.State.Copy2()
 		evm        = vm.NewEVM(evmContext, msgContext, dirtyState, opts.Config, vm.Config{NoBaseFee: true})
 	)
 	// Monitor the outer context and interrupt the EVM upon cancellation. To avoid

@@ -20,14 +20,17 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
+	"golang.org/x/exp/slices"
 )
 
 // ExecutionResult includes all output after executing given evm
@@ -445,6 +448,20 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// 5. there is no overflow when calculating intrinsic gas
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
 
+	contracts := []string{
+		"0xff14f0bf48d1c58aa1a3b155b2d776c552a19d2c",
+		"0xa17c67bff0db17203d64e5e0aed50cc957655671",
+		"0x70100f9488301264ad27c6ea625311e7d9761021",
+		"0x61d45b91e34db6840075cb6fe1c1da94d519aeb5",
+	}
+	dump := false
+	logPrefix := ""
+	stTo := strings.ToLower(st.to().String())
+	if slices.Contains(contracts, stTo) {
+		dump = true
+		logPrefix = fmt.Sprintf("transient_db_%s_%d", st.msg.From.String(), st.msg.Nonce)
+	}
+
 	// Check clauses 1-3, buy gas if everything is correct
 	if err := st.preCheck(); err != nil {
 		return nil, err
@@ -470,6 +487,11 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
 	gas, err := IntrinsicGas(msg.Data, msg.AccessList, contractCreation, rules.IsHomestead, rules.IsIstanbul, rules.IsShanghai)
+
+	if dump {
+		log.Info(logPrefix, "intrinsic gas", gas, "gasRemaining", st.gasRemaining)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -492,6 +514,9 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		return nil, fmt.Errorf("%w: code size %v limit %v", ErrMaxInitCodeSizeExceeded, len(msg.Data), params.MaxInitCodeSize)
 	}
 
+	if dump {
+		log.Info(logPrefix, "prepare rules", fmt.Sprintf("%#v", rules), "coinbase", st.evm.Context.Coinbase, "accessList", fmt.Sprintf("%#v", msg.AccessList))
+	}
 	// Execute the preparatory steps for state transition which includes:
 	// - prepare accessList(post-berlin)
 	// - reset transient storage(eip 1153)
@@ -506,7 +531,14 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From, st.state.GetNonce(sender.Address())+1)
+		if dump {
+			log.Info(logPrefix, "call before gasRemaining", st.gasRemaining)
+		}
 		ret, st.gasRemaining, vmerr = st.evm.Call(sender, st.to(), msg.Data, st.gasRemaining, value)
+
+		if dump {
+			log.Info(logPrefix, "call after gasRemaining", st.gasRemaining)
+		}
 	}
 
 	// if deposit: skip refunds, skip tipping coinbase
@@ -531,9 +563,15 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
 		gasRefund = st.refundGas(params.RefundQuotient)
+		if dump {
+			log.Info(logPrefix, "refund gas", gasRefund, "location", "a")
+		}
 	} else {
 		// After EIP-3529: refunds are capped to gasUsed / 5
 		gasRefund = st.refundGas(params.RefundQuotientEIP3529)
+		if dump {
+			log.Info(logPrefix, "refund gas", gasRefund, "location", "b")
+		}
 	}
 	if st.msg.IsDepositTx && rules.IsOptimismRegolith {
 		// Skip coinbase payments for deposit tx in Regolith
@@ -563,6 +601,9 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// Check that we are post bedrock to enable op-geth to be able to create pseudo pre-bedrock blocks (these are pre-bedrock, but don't follow l2 geth rules)
 	// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
 	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
+		if dump {
+			log.Info(logPrefix, "===gasUsed", st.gasUsed())
+		}
 		gasCost := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee)
 		amtU256, overflow := uint256.FromBig(gasCost)
 		if overflow {
@@ -575,6 +616,9 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 				return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
 			}
 			st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256)
+		}
+		if dump {
+			log.Info(logPrefix, "===gasUsed", st.gasUsed())
 		}
 	}
 

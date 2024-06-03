@@ -786,6 +786,121 @@ func (s *StateDB) Copy() *StateDB {
 	return state
 }
 
+func (s *StateDB) Copy2() *StateDB {
+	// Copy all the basic fields, initialize the memory ones
+	state := &StateDB{
+		db:                   s.db,
+		trie:                 s.db.CopyTrie(s.trie),
+		originalRoot:         s.originalRoot,
+		accounts:             make(map[common.Hash][]byte),
+		storages:             make(map[common.Hash]map[common.Hash][]byte),
+		accountsOrigin:       make(map[common.Address][]byte),
+		storagesOrigin:       make(map[common.Address]map[common.Hash][]byte),
+		stateObjects:         make(map[common.Address]*stateObject, len(s.journal.dirties)),
+		stateObjectsPending:  make(map[common.Address]struct{}, len(s.stateObjectsPending)),
+		stateObjectsDirty:    make(map[common.Address]struct{}, len(s.journal.dirties)),
+		stateObjectsDestruct: make(map[common.Address]*types.StateAccount, len(s.stateObjectsDestruct)),
+		refund:               s.refund,
+		logs:                 make(map[common.Hash][]*types.Log, len(s.logs)),
+		logSize:              s.logSize,
+		preimages:            make(map[common.Hash][]byte, len(s.preimages)),
+		journal:              newJournal(),
+		hasher:               crypto.NewKeccakState(),
+
+		// In order for the block producer to be able to use and make additions
+		// to the snapshot tree, we need to copy that as well. Otherwise, any
+		// block mined by ourselves will cause gaps in the tree, and force the
+		// miner to operate trie-backed only.
+		snaps: s.snaps,
+		snap:  s.snap,
+	}
+	// Copy the dirty states, logs, and preimages
+	for addr := range s.journal.dirties {
+		log.Info("copy2", "dirty journal addr", addr.String())
+		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
+		// and in the Finalise-method, there is a case where an object is in the journal but not
+		// in the stateObjects: OOG after touch on ripeMD prior to Byzantium. Thus, we need to check for
+		// nil
+		if object, exist := s.stateObjects[addr]; exist {
+			log.Info("copy2", "dirty journal addr existed", addr.String())
+			// Even though the original object is dirty, we are not copying the journal,
+			// so we need to make sure that any side-effect the journal would have caused
+			// during a commit (or similar op) is already applied to the copy.
+			state.stateObjects[addr] = object.deepCopy(state)
+
+			state.stateObjectsDirty[addr] = struct{}{}   // Mark the copy dirty to force internal (code/state) commits
+			state.stateObjectsPending[addr] = struct{}{} // Mark the copy pending to force external (account) commits
+		}
+	}
+	// Above, we don't copy the actual journal. This means that if the copy
+	// is copied, the loop above will be a no-op, since the copy's journal
+	// is empty. Thus, here we iterate over stateObjects, to enable copies
+	// of copies.
+	for addr := range s.stateObjectsPending {
+		log.Info("copy2", "pending object", addr.String())
+
+		if _, exist := state.stateObjects[addr]; !exist {
+			log.Info("copy2", "pending object existed", addr.String())
+			state.stateObjects[addr] = s.stateObjects[addr].deepCopy(state)
+		}
+		state.stateObjectsPending[addr] = struct{}{}
+	}
+	for addr := range s.stateObjectsDirty {
+		log.Info("copy2", "dirty object", addr.String())
+		if _, exist := state.stateObjects[addr]; !exist {
+			log.Info("copy2", "dirty object existed", addr.String())
+			state.stateObjects[addr] = s.stateObjects[addr].deepCopy(state)
+		}
+		state.stateObjectsDirty[addr] = struct{}{}
+	}
+	// Deep copy the destruction markers.
+	for addr, value := range s.stateObjectsDestruct {
+		log.Info("copy2", "destruct object", addr.String())
+		state.stateObjectsDestruct[addr] = value
+	}
+	// Deep copy the state changes made in the scope of block
+	// along with their original values.
+	state.accounts = copySet(s.accounts)
+	state.storages = copy2DSet(s.storages)
+	state.accountsOrigin = copySet(state.accountsOrigin)
+	state.storagesOrigin = copy2DSet(state.storagesOrigin)
+
+	// Deep copy the logs occurred in the scope of block
+	for hash, logs := range s.logs {
+		cpy := make([]*types.Log, len(logs))
+		for i, l := range logs {
+			cpy[i] = new(types.Log)
+			*cpy[i] = *l
+		}
+		state.logs[hash] = cpy
+	}
+	// Deep copy the preimages occurred in the scope of block
+	for hash, preimage := range s.preimages {
+		state.preimages[hash] = preimage
+	}
+	// Do we need to copy the access list and transient storage?
+	// In practice: No. At the start of a transaction, these two lists are empty.
+	// In practice, we only ever copy state _between_ transactions/blocks, never
+	// in the middle of a transaction. However, it doesn't cost us much to copy
+	// empty lists, so we do it anyway to not blow up if we ever decide copy them
+	// in the middle of a transaction.
+	state.accessList = s.accessList.Copy()
+	state.transientStorage = s.transientStorage.Copy()
+
+	state.accessList.Dump()
+	for addr, _ := range state.transientStorage {
+		log.Info("copy2", "transient storage", addr)
+	}
+
+	// If there's a prefetcher running, make an inactive copy of it that can
+	// only access data but does not actively preload (since the user will not
+	// know that they need to explicitly terminate an active copy).
+	if s.prefetcher != nil {
+		state.prefetcher = s.prefetcher.copy()
+	}
+	return state
+}
+
 // Snapshot returns an identifier for the current revision of the state.
 func (s *StateDB) Snapshot() int {
 	id := s.nextRevisionId
