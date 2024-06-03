@@ -251,7 +251,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 	in.evm.depth++
 	defer func() { in.evm.depth-- }()
 
-	log.Info("evm", "depth", in.evm.depth)
+	log.Info("evm", "depth", in.evm.depth, "gas", contract.Gas)
 
 	// Make sure the readOnly is only set if we aren't in readOnly yet.
 	// This also makes sure that the readOnly flag isn't removed for child calls.
@@ -314,6 +314,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 	// the execution of one of the operations or until the done flag is set by the
 	// parent context.
 	for {
+		originGas := contract.Gas
 		if debug {
 			// Capture pre-execution values for tracing.
 			logged, pcCopy, gasCopy = false, pc, contract.Gas
@@ -323,7 +324,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 		op = contract.GetOp(pc)
 		operation := in.table[op]
 		cost = operation.constantGas // For tracing
-		log.Info("run2", "op", op.String(), "cost", cost)
+		log.Info("run2", "op", op.String(), "cost", cost, "gas", contract.Gas)
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
 			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
@@ -354,12 +355,14 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			// Consume the gas and return an error if not enough gas is available.
 			// cost is explicitly set so that the capture state defer method can get the proper cost
 			var dynamicCost uint64
+			log.Info("run2", "op", op.String(), "stack", stack, "mem", mem, "memorySize", memorySize)
 			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
 			cost += dynamicCost // for tracing
 			log.Info("run2", "op", op.String(), "dynamicCost", dynamicCost)
 			if err != nil || !contract.UseGas(dynamicCost) {
 				return nil, ErrOutOfGas
 			}
+			log.Info("run2", "op", op.String(), "contract.Gas", contract.Gas)
 			// Do tracing before memory expansion
 			if debug {
 				in.evm.Config.Tracer.CaptureState(pc, op, gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
@@ -378,6 +381,8 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			break
 		}
 		pc++
+
+		log.Info("run2", "gas diff", originGas-contract.Gas)
 	}
 
 	if err == errStopToken {

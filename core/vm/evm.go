@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 
 	"github.com/holiman/uint256"
+	"google.golang.org/appengine/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -329,7 +330,9 @@ func (evm *EVM) Call2(caller ContractRef, addr common.Address, input []byte, gas
 			// The depth-check is already done, and precompiles handled above
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
+			log.Infof("call2", "contract.gas", contract.Gas)
 			ret, err = evm.interpreter.Run2(contract, input, false)
+			log.Infof("call2", "contract.gas", contract.Gas)
 			gas = contract.Gas
 		}
 	}
