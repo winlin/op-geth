@@ -375,6 +375,11 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			in.evm.Config.Tracer.CaptureState(pc, op, gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
 			logged = true
 		}
+
+		if op.String() == "CALL" {
+			operation.execute = opCall2
+		}
+
 		// execute the operation
 		res, err = operation.execute(&pc, in, callContext)
 		if err != nil {
