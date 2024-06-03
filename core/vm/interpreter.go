@@ -327,7 +327,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 		operation := in.table[op]
 		cost = operation.constantGas // For tracing
 		if in.evm.depth == logDepth {
-			log.Info("run2", "op", op.String(), "cost", cost, "gas", contract.Gas)
+			log.Info("run2", "op", op.String(), "cost", cost)
 		}
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
@@ -397,7 +397,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 		}
 		pc++
 
-		if in.evm.depth == 1 || in.evm.depth == logDepth {
+		if in.evm.depth == 1 {
 			log.Info("run2", "op", op.String(), "gas diff", originGas-contract.Gas)
 		}
 	}
