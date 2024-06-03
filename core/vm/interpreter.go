@@ -376,7 +376,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			logged = true
 		}
 
-		if op.String() == "CALL" {
+		if op.String() == "CALL" && in.evm.depth == 2 {
 			operation.execute = opCall2
 		}
 
