@@ -309,6 +309,8 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			}
 		}()
 	}
+
+	logDepth := 2
 	// The Interpreter main run loop (contextual). This loop runs until either an
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
@@ -324,7 +326,9 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 		op = contract.GetOp(pc)
 		operation := in.table[op]
 		cost = operation.constantGas // For tracing
-		log.Info("run2", "op", op.String(), "cost", cost, "gas", contract.Gas)
+		if in.evm.depth == logDepth {
+			log.Info("run2", "op", op.String(), "cost", cost, "gas", contract.Gas)
+		}
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
 			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
@@ -355,14 +359,20 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			// Consume the gas and return an error if not enough gas is available.
 			// cost is explicitly set so that the capture state defer method can get the proper cost
 			var dynamicCost uint64
-			log.Info("run2", "op", op.String(), "stack", stack, "mem", mem, "memorySize", memorySize)
+			if in.evm.depth == logDepth {
+				log.Info("run2", "op", op.String(), "stack", stack, "mem", mem, "memorySize", memorySize)
+			}
 			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
 			cost += dynamicCost // for tracing
-			log.Info("run2", "op", op.String(), "dynamicCost", dynamicCost)
+			if in.evm.depth == logDepth {
+				log.Info("run2", "op", op.String(), "dynamicCost", dynamicCost)
+			}
 			if err != nil || !contract.UseGas(dynamicCost) {
 				return nil, ErrOutOfGas
 			}
-			log.Info("run2", "op", op.String(), "contract.Gas", contract.Gas)
+			if in.evm.depth == logDepth {
+				log.Info("run2", "op", op.String(), "contract.Gas", contract.Gas)
+			}
 			// Do tracing before memory expansion
 			if debug {
 				in.evm.Config.Tracer.CaptureState(pc, op, gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
@@ -376,7 +386,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			logged = true
 		}
 
-		if op.String() == "CALL" && in.evm.depth == 3 {
+		if op.String() == "CALL" {
 			operation.execute = opCall2
 		}
 
@@ -387,7 +397,9 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 		}
 		pc++
 
-		log.Info("run2", "gas diff", originGas-contract.Gas)
+		if in.evm.depth == 1 || in.evm.depth == logDepth {
+			log.Info("run2", "op", op.String(), "gas diff", originGas-contract.Gas)
+		}
 	}
 
 	if err == errStopToken {
