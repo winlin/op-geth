@@ -1705,6 +1705,12 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		return nil, 0, nil, err
 	}
 
+	header2 := types.Header{}
+	header2 = *header
+	header2.Time += 2
+	header2.Number = big.NewInt(0).Add(header2.Number, big.NewInt(1))
+	header = &header2
+
 	// header.Time += 2
 	// header.Number = big.NewInt(0).Add(header.Number, big.NewInt(1))
 
