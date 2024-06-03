@@ -17,6 +17,7 @@
 package core
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -459,7 +460,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	stTo := strings.ToLower(st.to().String())
 	if slices.Contains(contracts, stTo) {
 		dump = true
-		logPrefix = fmt.Sprintf("transient_db_%s_%d", st.msg.From.String(), st.msg.Nonce)
+		logPrefix = fmt.Sprintf("transient_db_%s_%d", st.msg.From.String(), st.state.GetNonce(vm.AccountRef(st.msg.From).Address())+1)
 	}
 
 	// Check clauses 1-3, buy gas if everything is correct
@@ -532,12 +533,12 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From, st.state.GetNonce(sender.Address())+1)
 		if dump {
-			log.Info(logPrefix, "call before gasRemaining", st.gasRemaining)
+			log.Info(logPrefix, "call before gasRemaining", st.gasRemaining, "sender", sender.Address().String(), "to", st.to().String(), "data", hex.EncodeToString(msg.Data), "value", value)
 		}
 		ret, st.gasRemaining, vmerr = st.evm.Call(sender, st.to(), msg.Data, st.gasRemaining, value)
 
 		if dump {
-			log.Info(logPrefix, "call after gasRemaining", st.gasRemaining)
+			log.Info(logPrefix, "call after gasRemaining", st.gasRemaining, "ret", fmt.Sprintf("%#v", ret))
 		}
 	}
 
