@@ -534,11 +534,10 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		st.state.SetNonce(msg.From, st.state.GetNonce(sender.Address())+1)
 		if dump {
 			log.Info(logPrefix, "call before gasRemaining", st.gasRemaining, "sender", sender.Address().String(), "to", st.to().String(), "data", hex.EncodeToString(msg.Data), "value", value)
-		}
-		ret, st.gasRemaining, vmerr = st.evm.Call(sender, st.to(), msg.Data, st.gasRemaining, value)
-
-		if dump {
+			ret, st.gasRemaining, vmerr = st.evm.Call2(sender, st.to(), msg.Data, st.gasRemaining, value)
 			log.Info(logPrefix, "call after gasRemaining", st.gasRemaining, "ret", fmt.Sprintf("%#v", ret))
+		} else {
+			ret, st.gasRemaining, vmerr = st.evm.Call(sender, st.to(), msg.Data, st.gasRemaining, value)
 		}
 	}
 
