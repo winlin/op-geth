@@ -1705,8 +1705,8 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		return nil, 0, nil, err
 	}
 
-	header.Time += 2
-	header.Number = big.NewInt(0).Add(header.Number, big.NewInt(1))
+	// header.Time += 2
+	// header.Number = big.NewInt(0).Add(header.Number, big.NewInt(1))
 
 	msg.Nonce = uint64(*args.Nonce)
 	log.Info("AccessList", "msg", fmt.Sprintf("%#v", msg))
