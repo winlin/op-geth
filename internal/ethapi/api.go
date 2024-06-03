@@ -1705,6 +1705,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		return nil, 0, nil, err
 	}
 
+	msg.Nonce = uint64(*args.Nonce)
 	log.Info("AccessList", "msg", fmt.Sprintf("%#v", msg))
 	// Apply the transaction with the access list tracer
 	// tracer := logger.NewAccessListTracer(accessList, args.from(), to, precompiles)
