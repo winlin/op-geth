@@ -310,7 +310,7 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 		}()
 	}
 
-	// logDepth := 2
+	logDepth := 2
 	// The Interpreter main run loop (contextual). This loop runs until either an
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
@@ -359,9 +359,9 @@ func (in *EVMInterpreter) Run2(contract *Contract, input []byte, readOnly bool) 
 			// Consume the gas and return an error if not enough gas is available.
 			// cost is explicitly set so that the capture state defer method can get the proper cost
 			var dynamicCost uint64
-			// if in.evm.depth == logDepth {
-			// 	log.Info("run2", "op", op.String(), "stack", stack, "mem", mem, "memorySize", memorySize)
-			// }
+			if in.evm.depth == logDepth {
+				log.Info("run2", "op", op.String(), "stack", stack, "mem", mem, "memorySize", memorySize)
+			}
 			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
 			cost += dynamicCost // for tracing
 			// if in.evm.depth == logDepth {

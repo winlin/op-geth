@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"encoding/hex"
 	"math/big"
 	"sync/atomic"
 
@@ -330,6 +331,7 @@ func (evm *EVM) Call2(caller ContractRef, addr common.Address, input []byte, gas
 			// The depth-check is already done, and precompiles handled above
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
+			log.Info("contract", "code", hex.EncodeToString(contract.Code), "hash", contract.CodeHash.String(), "addr", contract.CodeAddr.String())
 			log.Info("call2", "contract.gas", contract.Gas)
 			ret, err = evm.interpreter.Run2(contract, input, false)
 			log.Info("call2", "contract.gas", contract.Gas)
