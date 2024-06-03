@@ -1706,6 +1706,8 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 	}
 
 	header.Time += 2
+	header.Number = big.NewInt(0).Add(header.Number, big.NewInt(1))
+
 	msg.Nonce = uint64(*args.Nonce)
 	log.Info("AccessList", "msg", fmt.Sprintf("%#v", msg))
 	// Apply the transaction with the access list tracer
@@ -1720,7 +1722,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 	}
 
 	log.Info("AccessList", "res", fmt.Sprintf("%#v", res))
-	return accessList, res.UsedGas + res.RefundedGas, res.Err, nil
+	return accessList, res.UsedGas, res.Err, nil
 	// if tracer.Equal(prevTracer) {
 	// 	return accessList, res.UsedGas, res.Err, nil
 	// }

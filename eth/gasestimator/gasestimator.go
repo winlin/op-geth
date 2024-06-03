@@ -129,7 +129,7 @@ func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uin
 	// limit for these cases anyway.
 	// lo = result.UsedGas - 1
 
-	return result.UsedGas + result.RefundedGas, nil, nil
+	return result.UsedGas, nil, nil
 
 	// // There's a fairly high chance for the transaction to execute successfully
 	// // with gasLimit set to the first execution's usedGas + gasRefund. Explicitly
