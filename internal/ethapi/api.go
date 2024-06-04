@@ -1277,6 +1277,11 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	if err = overrides.Apply(state); err != nil {
 		return 0, err
 	}
+
+	header = types.CopyHeader(header)
+	header.Time += 2
+	header.Number = big.NewInt(0).Add(header.Number, big.NewInt(1))
+
 	// Construct the gas estimator option from the user input
 	opts := &gasestimator.Options{
 		Config:     b.ChainConfig(),
@@ -1680,6 +1685,11 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 	} else {
 		to = crypto.CreateAddress(args.from(), uint64(*args.Nonce))
 	}
+
+	header = types.CopyHeader(header)
+	header.Time += 2
+	header.Number = big.NewInt(0).Add(header.Number, big.NewInt(1))
+
 	isPostMerge := header.Difficulty.Cmp(common.Big0) == 0
 	// Retrieve the precompiles since they don't need to be added to the access list
 	precompiles := vm.ActivePrecompiles(b.ChainConfig().Rules(header.Number, isPostMerge, header.Time))
