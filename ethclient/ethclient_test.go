@@ -250,6 +250,14 @@ func (m *mockHistoricalBackend) EstimateGas(ctx context.Context, args ethapi.Tra
 	return 0, ethereum.NotFound
 }
 
+func (m *mockHistoricalBackend) EstimateGasWithLog(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (hexutil.Uint64, []*types.Log, error) {
+	num, ok := blockNrOrHash.Number()
+	if ok && num == 1 {
+		return hexutil.Uint64(12345), nil, nil
+	}
+	return 0, nil, ethereum.NotFound
+}
+
 func newMockHistoricalBackend(t *testing.T) string {
 	s := rpc.NewServer()
 	err := node.RegisterApis([]rpc.API{

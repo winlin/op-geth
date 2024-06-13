@@ -1311,7 +1311,35 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 // value is capped by both `args.Gas` (if non-nil & non-zero) and the backend's RPCGasCap
 // configuration (if non-zero).
 // Note: Required blob gas is not computed in this method.
-func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Uint64, []*types.Log, error) {
+func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Uint64, error) {
+	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
+	if blockNrOrHash != nil {
+		bNrOrHash = *blockNrOrHash
+	}
+
+	header, err := headerByNumberOrHash(ctx, s.b, bNrOrHash)
+	if err != nil {
+		return 0, err
+	}
+
+	if s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var res hexutil.Uint64
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_estimateGas", args, blockNrOrHash)
+			if err != nil {
+				return 0, fmt.Errorf("historical backend error: %w", err)
+			}
+			return res, nil
+		} else {
+			return 0, rpc.ErrNoHistoricalFallback
+		}
+	}
+
+	gas, _, err := DoEstimateGas(ctx, s.b, args, bNrOrHash, overrides, s.b.RPCGasCap())
+	return gas, err
+}
+
+func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Uint64, []*types.Log, error) {
 	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
