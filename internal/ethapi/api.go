@@ -1667,7 +1667,6 @@ type accessListResult struct {
 	Accesslist *types.AccessList `json:"accessList"`
 	Error      string            `json:"error,omitempty"`
 	GasUsed    hexutil.Uint64    `json:"gasUsed"`
-	Logs       []*types.Log      `json:"logs"`
 }
 
 // CreateAccessList creates an EIP-2930 type AccessList for the given transaction.
@@ -1692,11 +1691,11 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 		}
 	}
 
-	acl, gasUsed, vmerr, err, logs := AccessList(ctx, s.b, bNrOrHash, args)
+	acl, gasUsed, vmerr, err := AccessList(ctx, s.b, bNrOrHash, args)
 	if err != nil {
 		return nil, err
 	}
-	result := &accessListResult{Accesslist: &acl, GasUsed: hexutil.Uint64(gasUsed), Logs: logs}
+	result := &accessListResult{Accesslist: &acl, GasUsed: hexutil.Uint64(gasUsed)}
 	if vmerr != nil {
 		result.Error = vmerr.Error()
 	}
@@ -1706,16 +1705,16 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 // AccessList creates an access list for the given transaction.
 // If the accesslist creation fails an error is returned.
 // If the transaction itself fails, an vmErr is returned.
-func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error, logs []*types.Log) {
+func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error) {
 	// Retrieve the execution context
 	db, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if db == nil || err != nil {
-		return nil, 0, nil, err, logs
+		return nil, 0, nil, err
 	}
 
 	// Ensure any missing fields are filled, extract the recipient and input data
 	if err := args.setDefaults(ctx, b, true); err != nil {
-		return nil, 0, nil, err, logs
+		return nil, 0, nil, err
 	}
 	var to common.Address
 	if args.To != nil {
@@ -1748,7 +1747,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		args.AccessList = &accessList
 		msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee)
 		if err != nil {
-			return nil, 0, nil, err, logs
+			return nil, 0, nil, err
 		}
 
 		// Apply the transaction with the access list tracer
@@ -1757,11 +1756,10 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		vmenv := b.GetEVM(ctx, msg, statedb, header, &config, nil)
 		res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
 		if err != nil {
-			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err), logs
+			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
 		}
 		if tracer.Equal(prevTracer) {
-			logs := statedb.GetLogs(args.toTransaction().Hash(), header.Number.Uint64(), header.Hash())
-			return accessList, res.UsedGas, res.Err, nil, logs
+			return accessList, res.UsedGas, res.Err, nil
 		}
 		prevTracer = tracer
 	}

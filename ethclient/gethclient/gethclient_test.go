@@ -172,7 +172,7 @@ func testAccessList(t *testing.T, client *rpc.Client) {
 		GasPrice: big.NewInt(875000000),
 		Value:    big.NewInt(1),
 	}
-	al, gas, vmErr, err, _ := ec.CreateAccessList(context.Background(), msg)
+	al, gas, vmErr, err := ec.CreateAccessList(context.Background(), msg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -194,7 +194,7 @@ func testAccessList(t *testing.T, client *rpc.Client) {
 		Value:    big.NewInt(1),
 		Data:     common.FromHex("0x608060806080608155fd"),
 	}
-	al, gas, vmErr, err, _ = ec.CreateAccessList(context.Background(), msg)
+	al, gas, vmErr, err = ec.CreateAccessList(context.Background(), msg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
