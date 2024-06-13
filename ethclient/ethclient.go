@@ -617,7 +617,7 @@ func (ec *Client) EstimateGasWithLog(ctx context.Context, msg ethereum.CallMsg) 
 		hex  hexutil.Uint64
 		logs []*types.Log
 	}
-	err := ec.c.CallContext(ctx, &result, "eth_estimateGasWithLog", toCallArg(msg))
+	err := ec.c.CallContext(ctx, &result, "eth_estimateGas", toCallArg(msg))
 	if err != nil {
 		return 0, nil, err
 	}
