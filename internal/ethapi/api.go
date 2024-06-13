@@ -1268,14 +1268,14 @@ func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrO
 // successfully at block `blockNrOrHash`. It returns error if the transaction would revert, or if
 // there are unexpected failures. The gas limit is capped by both `args.Gas` (if non-nil &
 // non-zero) and `gasCap` (if non-zero).
-func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, gasCap uint64) (hexutil.Uint64, error) {
+func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, gasCap uint64) (hexutil.Uint64, []*types.Log, error) {
 	// Retrieve the base state and mutate it with any overrides
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	if err = overrides.Apply(state); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	header = types.CopyHeader(header)
@@ -1293,16 +1293,16 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	// Run the gas estimation andwrap any revertals into a custom return
 	call, err := args.ToMessage(gasCap, header.BaseFee)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	estimate, revert, err := gasestimator.Estimate(ctx, call, opts, gasCap)
+	estimate, revert, logs, err := gasestimator.Estimate(ctx, call, opts, gasCap)
 	if err != nil {
 		if len(revert) > 0 {
-			return 0, newRevertError(revert)
+			return 0, nil, newRevertError(revert)
 		}
-		return 0, err
+		return 0, nil, err
 	}
-	return hexutil.Uint64(estimate), nil
+	return hexutil.Uint64(estimate), logs, nil
 }
 
 // EstimateGas returns the lowest possible gas limit that allows the transaction to run
@@ -1311,7 +1311,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 // value is capped by both `args.Gas` (if non-nil & non-zero) and the backend's RPCGasCap
 // configuration (if non-zero).
 // Note: Required blob gas is not computed in this method.
-func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Uint64, error) {
+func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Uint64, []*types.Log, error) {
 	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
@@ -1319,7 +1319,7 @@ func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, b
 
 	header, err := headerByNumberOrHash(ctx, s.b, bNrOrHash)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	if s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
@@ -1327,11 +1327,11 @@ func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, b
 			var res hexutil.Uint64
 			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_estimateGas", args, blockNrOrHash)
 			if err != nil {
-				return 0, fmt.Errorf("historical backend error: %w", err)
+				return 0, nil, fmt.Errorf("historical backend error: %w", err)
 			}
-			return res, nil
+			return res, nil, nil
 		} else {
-			return 0, rpc.ErrNoHistoricalFallback
+			return 0, nil, rpc.ErrNoHistoricalFallback
 		}
 	}
 
@@ -1630,6 +1630,7 @@ type accessListResult struct {
 	Accesslist *types.AccessList `json:"accessList"`
 	Error      string            `json:"error,omitempty"`
 	GasUsed    hexutil.Uint64    `json:"gasUsed"`
+	Logs       []*types.Log      `json:"logs"`
 }
 
 // CreateAccessList creates an EIP-2930 type AccessList for the given transaction.
@@ -1654,11 +1655,11 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 		}
 	}
 
-	acl, gasUsed, vmerr, err := AccessList(ctx, s.b, bNrOrHash, args)
+	acl, gasUsed, vmerr, err, logs := AccessList(ctx, s.b, bNrOrHash, args)
 	if err != nil {
 		return nil, err
 	}
-	result := &accessListResult{Accesslist: &acl, GasUsed: hexutil.Uint64(gasUsed)}
+	result := &accessListResult{Accesslist: &acl, GasUsed: hexutil.Uint64(gasUsed), Logs: logs}
 	if vmerr != nil {
 		result.Error = vmerr.Error()
 	}
@@ -1668,16 +1669,16 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 // AccessList creates an access list for the given transaction.
 // If the accesslist creation fails an error is returned.
 // If the transaction itself fails, an vmErr is returned.
-func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error) {
+func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error, logs []*types.Log) {
 	// Retrieve the execution context
 	db, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if db == nil || err != nil {
-		return nil, 0, nil, err
+		return nil, 0, nil, err, logs
 	}
 
 	// Ensure any missing fields are filled, extract the recipient and input data
 	if err := args.setDefaults(ctx, b, true); err != nil {
-		return nil, 0, nil, err
+		return nil, 0, nil, err, logs
 	}
 	var to common.Address
 	if args.To != nil {
@@ -1710,7 +1711,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		args.AccessList = &accessList
 		msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee)
 		if err != nil {
-			return nil, 0, nil, err
+			return nil, 0, nil, err, logs
 		}
 
 		// Apply the transaction with the access list tracer
@@ -1719,10 +1720,11 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		vmenv := b.GetEVM(ctx, msg, statedb, header, &config, nil)
 		res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
 		if err != nil {
-			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
+			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err), logs
 		}
 		if tracer.Equal(prevTracer) {
-			return accessList, res.UsedGas, res.Err, nil
+			logs := statedb.GetLogs(args.toTransaction().Hash(), header.Number.Uint64(), header.Hash())
+			return accessList, res.UsedGas, res.Err, nil, logs
 		}
 		prevTracer = tracer
 	}

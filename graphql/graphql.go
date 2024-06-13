@@ -1212,7 +1212,7 @@ func (b *Block) Call(ctx context.Context, args struct {
 
 func (b *Block) EstimateGas(ctx context.Context, args struct {
 	Data ethapi.TransactionArgs
-}) (hexutil.Uint64, error) {
+}) (hexutil.Uint64, []*types.Log, error) {
 	return ethapi.DoEstimateGas(ctx, b.r.backend, args.Data, *b.numberOrHash, nil, b.r.backend.RPCGasCap())
 }
 
@@ -1275,7 +1275,7 @@ func (p *Pending) Call(ctx context.Context, args struct {
 
 func (p *Pending) EstimateGas(ctx context.Context, args struct {
 	Data ethapi.TransactionArgs
-}) (hexutil.Uint64, error) {
+}) (hexutil.Uint64, []*types.Log, error) {
 	latestBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 	return ethapi.DoEstimateGas(ctx, p.r.backend, args.Data, latestBlockNr, nil, p.r.backend.RPCGasCap())
 }

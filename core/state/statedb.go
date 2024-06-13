@@ -227,6 +227,11 @@ func (s *StateDB) GetLogs(hash common.Hash, blockNumber uint64, blockHash common
 	return logs
 }
 
+func (s *StateDB) GetCurrentLogs() []*types.Log {
+	logs := s.logs[s.thash]
+	return logs
+}
+
 func (s *StateDB) Logs() []*types.Log {
 	var logs []*types.Log
 	for _, lgs := range s.logs {

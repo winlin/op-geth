@@ -47,17 +47,18 @@ func New(c *rpc.Client) *Client {
 
 // CreateAccessList tries to create an access list for a specific transaction based on the
 // current pending state of the blockchain.
-func (ec *Client) CreateAccessList(ctx context.Context, msg ethereum.CallMsg) (*types.AccessList, uint64, string, error) {
+func (ec *Client) CreateAccessList(ctx context.Context, msg ethereum.CallMsg) (*types.AccessList, uint64, string, error, []*types.Log) {
 	type accessListResult struct {
 		Accesslist *types.AccessList `json:"accessList"`
 		Error      string            `json:"error,omitempty"`
 		GasUsed    hexutil.Uint64    `json:"gasUsed"`
+		Logs       []*types.Log      `json:"logs"`
 	}
 	var result accessListResult
 	if err := ec.c.CallContext(ctx, &result, "eth_createAccessList", toCallArg(msg)); err != nil {
-		return nil, 0, "", err
+		return nil, 0, "", err, nil
 	}
-	return result.Accesslist, uint64(result.GasUsed), result.Error, nil
+	return result.Accesslist, uint64(result.GasUsed), result.Error, nil, result.Logs
 }
 
 // AccountResult is the result of a GetProof operation.

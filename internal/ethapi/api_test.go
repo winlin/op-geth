@@ -924,7 +924,7 @@ func TestEstimateGas(t *testing.T) {
 		},
 	}
 	for i, tc := range testSuite {
-		result, err := api.EstimateGas(context.Background(), tc.call, &rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides)
+		result, _, err := api.EstimateGas(context.Background(), tc.call, &rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides)
 		if tc.expectErr != nil {
 			if err == nil {
 				t.Errorf("test %d: want error %v, have nothing", i, tc.expectErr)
