@@ -234,6 +234,7 @@ func run(ctx context.Context, call *core.Message, opts *Options) (*core.Executio
 		return result, nil, fmt.Errorf("failed with %d gas: %w", call.GasLimit, err)
 	}
 
-	logs := dirtyState.GetCurrentLogs()
+	// logs := dirtyState.GetCurrentLogs()
+	logs := []*types.Log{}
 	return result, logs, nil
 }

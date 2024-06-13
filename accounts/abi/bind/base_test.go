@@ -71,6 +71,10 @@ func (mt *mockTransactor) EstimateGas(ctx context.Context, call ethereum.CallMsg
 	return 0, nil
 }
 
+func (mt *mockTransactor) EstimateGasWithLog(ctx context.Context, call ethereum.CallMsg) (gas uint64, logs []*types.Log, err error) {
+	return 0, nil, nil
+}
+
 func (mt *mockTransactor) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	return nil
 }
