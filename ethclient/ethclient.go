@@ -614,14 +614,14 @@ func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64
 
 func (ec *Client) EstimateGasWithLog(ctx context.Context, msg ethereum.CallMsg) (uint64, []*types.Log, error) {
 	var result struct {
-		hex  hexutil.Uint64
-		logs []*types.Log
+		Gas  hexutil.Uint64
+		Logs []*types.Log
 	}
-	err := ec.c.CallContext(ctx, &result, "eth_estimateGas", toCallArg(msg))
+	err := ec.c.CallContext(ctx, &result, "eth_estimateGasWithLog", toCallArg(msg))
 	if err != nil {
 		return 0, nil, err
 	}
-	return uint64(result.hex), result.logs, nil
+	return uint64(result.Gas), result.Logs, nil
 }
 
 // SendTransaction injects a signed transaction into the pending pool for execution.

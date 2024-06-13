@@ -1339,7 +1339,12 @@ func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, b
 	return gas, err
 }
 
-func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Uint64, []*types.Log, error) {
+type estimateGasResult struct {
+	Gas  hexutil.Uint64
+	Logs []*types.Log
+}
+
+func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (*estimateGasResult, error) {
 	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
@@ -1347,7 +1352,7 @@ func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args Transaction
 
 	header, err := headerByNumberOrHash(ctx, s.b, bNrOrHash)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 
 	if s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
@@ -1355,15 +1360,19 @@ func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args Transaction
 			var res hexutil.Uint64
 			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_estimateGas", args, blockNrOrHash)
 			if err != nil {
-				return 0, nil, fmt.Errorf("historical backend error: %w", err)
+				return nil, fmt.Errorf("historical backend error: %w", err)
 			}
-			return res, nil, nil
+			return nil, nil
 		} else {
-			return 0, nil, rpc.ErrNoHistoricalFallback
+			return nil, rpc.ErrNoHistoricalFallback
 		}
 	}
 
-	return DoEstimateGas(ctx, s.b, args, bNrOrHash, overrides, s.b.RPCGasCap())
+	gas, logs, err := DoEstimateGas(ctx, s.b, args, bNrOrHash, overrides, s.b.RPCGasCap())
+	return &estimateGasResult{
+		Gas:  gas,
+		Logs: logs,
+	}, err
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
