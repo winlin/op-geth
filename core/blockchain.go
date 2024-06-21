@@ -1059,6 +1059,7 @@ func (bc *BlockChain) procFutureBlocks() {
 			blocks = append(blocks, block)
 		}
 	}
+	log.Info("procFutureBlocks", "blocks", len(blocks))
 	if len(blocks) > 0 {
 		slices.SortFunc(blocks, func(a, b *types.Block) int {
 			return a.Number().Cmp(b.Number())
@@ -1542,6 +1543,9 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		return 0, errChainStopped
 	}
 	defer bc.chainmu.Unlock()
+
+	log.Info("InsertChain", "Number", "chain.Number()")
+
 	return bc.insertChain(chain, true)
 }
 
@@ -2288,6 +2292,7 @@ func (bc *BlockChain) InsertBlockWithoutSetHead(block *types.Block) error {
 	}
 	defer bc.chainmu.Unlock()
 
+	log.Info("InsertBlockWithoutSetHead", "Number", block.Number())
 	_, err := bc.insertChain(types.Blocks{block}, false)
 	return err
 }
