@@ -171,9 +171,10 @@ type TxFetcher struct {
 
 	// Stage 1: Waiting lists for newly discovered transactions that might be
 	// broadcast without needing explicit request/reply round trips.
-	waitlist  map[common.Hash]map[string]struct{}    // Transactions waiting for an potential broadcast
-	waittime  map[common.Hash]mclock.AbsTime         // Timestamps when transactions were added to the waitlist
-	waitslots map[string]map[common.Hash]*txMetadata // Waiting announcements grouped by peer (DoS protection)
+
+	// waitlist  map[common.Hash]map[string]struct{}    // Transactions waiting for an potential broadcast
+	// waittime  map[common.Hash]mclock.AbsTime         // Timestamps when transactions were added to the waitlist
+	// waitslots map[string]map[common.Hash]*txMetadata // Waiting announcements grouped by peer (DoS protection)
 
 	// Stage 2: Queue of transactions that waiting to be allocated to some peer
 	// to be retrieved directly.
@@ -210,13 +211,13 @@ func NewTxFetcherForTests(
 	hasTx func(common.Hash) bool, addTxs func([]*types.Transaction) []error, fetchTxs func(string, []common.Hash) error, dropPeer func(string),
 	clock mclock.Clock, rand *mrand.Rand) *TxFetcher {
 	return &TxFetcher{
-		notify:      make(chan *txAnnounce),
-		cleanup:     make(chan *txDelivery),
-		drop:        make(chan *txDrop),
-		quit:        make(chan struct{}),
-		waitlist:    make(map[common.Hash]map[string]struct{}),
-		waittime:    make(map[common.Hash]mclock.AbsTime),
-		waitslots:   make(map[string]map[common.Hash]*txMetadata),
+		notify:  make(chan *txAnnounce),
+		cleanup: make(chan *txDelivery),
+		drop:    make(chan *txDrop),
+		quit:    make(chan struct{}),
+		// waitlist:    make(map[common.Hash]map[string]struct{}),
+		// waittime:    make(map[common.Hash]mclock.AbsTime),
+		// waitslots:   make(map[string]map[common.Hash]*txMetadata),
 		announces:   make(map[string]map[common.Hash]*txMetadata),
 		announced:   make(map[common.Hash]map[string]struct{}),
 		fetching:    make(map[common.Hash]string),
@@ -399,10 +400,10 @@ func (f *TxFetcher) Stop() {
 
 func (f *TxFetcher) loop() {
 	var (
-		waitTimer    = new(mclock.Timer)
+		// waitTimer    = new(mclock.Timer)
 		timeoutTimer = new(mclock.Timer)
 
-		waitTrigger    = make(chan struct{}, 1)
+		// waitTrigger    = make(chan struct{}, 1)
 		timeoutTrigger = make(chan struct{}, 1)
 	)
 	for {
@@ -412,7 +413,7 @@ func (f *TxFetcher) loop() {
 			// Note, we could but do not filter already known transactions here as
 			// the probability of something arriving between this call and the pre-
 			// filter outside is essentially zero.
-			used := len(f.waitslots[ann.origin]) + len(f.announces[ann.origin])
+			used := len(f.announces[ann.origin])
 			if used >= maxTxAnnounces {
 				// This can happen if a set of transactions are requested but not
 				// all fulfilled, so the remainder are rescheduled without the cap
@@ -429,8 +430,8 @@ func (f *TxFetcher) loop() {
 				ann.metas = ann.metas[:want-maxTxAnnounces]
 			}
 			// All is well, schedule the remainder of the transactions
-			idleWait := len(f.waittime) == 0
-			_, oldPeer := f.announces[ann.origin]
+			// idleWait := len(f.waittime) == 0
+			// _, oldPeer := f.announces[ann.origin]
 
 			for i, hash := range ann.hashes {
 				// If the transaction is already downloading, add it to the list
@@ -449,91 +450,101 @@ func (f *TxFetcher) loop() {
 				}
 				// If the transaction is not downloading, but is already queued
 				// from a different peer, track it for the new peer too.
-				if f.announced[hash] != nil {
-					f.announced[hash][ann.origin] = struct{}{}
+				// if f.announced[hash] != nil {
+				// 	f.announced[hash][ann.origin] = struct{}{}
 
-					// Stage 2 and 3 share the set of origins per tx
-					if announces := f.announces[ann.origin]; announces != nil {
-						announces[hash] = ann.metas[i]
-					} else {
-						f.announces[ann.origin] = map[common.Hash]*txMetadata{hash: ann.metas[i]}
-					}
-					continue
-				}
+				// 	// Stage 2 and 3 share the set of origins per tx
+				// 	if announces := f.announces[ann.origin]; announces != nil {
+				// 		announces[hash] = ann.metas[i]
+				// 	} else {
+				// 		f.announces[ann.origin] = map[common.Hash]*txMetadata{hash: ann.metas[i]}
+				// 	}
+				// 	continue
+				// }
 				// If the transaction is already known to the fetcher, but not
 				// yet downloading, add the peer as an alternate origin in the
 				// waiting list.
-				if f.waitlist[hash] != nil {
-					// Ignore double announcements from the same peer. This is
-					// especially important if metadata is also passed along to
-					// prevent malicious peers flip-flopping good/bad values.
-					if _, ok := f.waitlist[hash][ann.origin]; ok {
-						continue
-					}
-					f.waitlist[hash][ann.origin] = struct{}{}
+				// if f.waitlist[hash] != nil {
+				// 	// Ignore double announcements from the same peer. This is
+				// 	// especially important if metadata is also passed along to
+				// 	// prevent malicious peers flip-flopping good/bad values.
+				// 	if _, ok := f.waitlist[hash][ann.origin]; ok {
+				// 		continue
+				// 	}
+				// 	f.waitlist[hash][ann.origin] = struct{}{}
 
-					if waitslots := f.waitslots[ann.origin]; waitslots != nil {
-						waitslots[hash] = ann.metas[i]
-					} else {
-						f.waitslots[ann.origin] = map[common.Hash]*txMetadata{hash: ann.metas[i]}
-					}
-					continue
-				}
+				// 	if waitslots := f.waitslots[ann.origin]; waitslots != nil {
+				// 		waitslots[hash] = ann.metas[i]
+				// 	} else {
+				// 		f.waitslots[ann.origin] = map[common.Hash]*txMetadata{hash: ann.metas[i]}
+				// 	}
+				// 	continue
+				// }
 				// Transaction unknown to the fetcher, insert it into the waiting list
-				f.waitlist[hash] = map[string]struct{}{ann.origin: {}}
-				f.waittime[hash] = f.clock.Now()
+				// f.waitlist[hash] = map[string]struct{}{ann.origin: {}}
+				// f.waittime[hash] = f.clock.Now()
 
-				if waitslots := f.waitslots[ann.origin]; waitslots != nil {
-					waitslots[hash] = ann.metas[i]
+				// if waitslots := f.waitslots[ann.origin]; waitslots != nil {
+				// 	waitslots[hash] = ann.metas[i]
+				// } else {
+				// 	f.waitslots[ann.origin] = map[common.Hash]*txMetadata{hash: ann.metas[i]}
+				// }
+
+				if f.announced[hash] == nil {
+					f.announced[hash] = make(map[string]struct{})
+				}
+				f.announced[hash][ann.origin] = struct{}{}
+				if announces := f.announces[ann.origin]; announces != nil {
+					announces[hash] = ann.metas[i]
 				} else {
-					f.waitslots[ann.origin] = map[common.Hash]*txMetadata{hash: ann.metas[i]}
+					f.announces[ann.origin] = map[common.Hash]*txMetadata{hash: ann.metas[i]}
 				}
 			}
 			// If a new item was added to the waitlist, schedule it into the fetcher
-			if idleWait && len(f.waittime) > 0 {
-				f.rescheduleWait(waitTimer, waitTrigger)
-			}
+			// if idleWait && len(f.waittime) > 0 {
+			// 	f.rescheduleWait(waitTimer, waitTrigger)
+			// }
 			// If this peer is new and announced something already queued, maybe
 			// request transactions from them
-			if !oldPeer && len(f.announces[ann.origin]) > 0 {
+			if len(f.announces[ann.origin]) > 0 && f.requests[ann.origin] == nil {
 				f.scheduleFetches(timeoutTimer, timeoutTrigger, map[string]struct{}{ann.origin: {}})
 			}
 
-		case <-waitTrigger:
-			// At least one transaction's waiting time ran out, push all expired
-			// ones into the retrieval queues
-			actives := make(map[string]struct{})
-			for hash, instance := range f.waittime {
-				if time.Duration(f.clock.Now()-instance)+txGatherSlack > txArriveTimeout {
-					// Transaction expired without propagation, schedule for retrieval
-					if f.announced[hash] != nil {
-						panic("announce tracker already contains waitlist item")
-					}
-					f.announced[hash] = f.waitlist[hash]
-					for peer := range f.waitlist[hash] {
-						if announces := f.announces[peer]; announces != nil {
-							announces[hash] = f.waitslots[peer][hash]
-						} else {
-							f.announces[peer] = map[common.Hash]*txMetadata{hash: f.waitslots[peer][hash]}
-						}
-						delete(f.waitslots[peer], hash)
-						if len(f.waitslots[peer]) == 0 {
-							delete(f.waitslots, peer)
-						}
-						actives[peer] = struct{}{}
-					}
-					delete(f.waittime, hash)
-					delete(f.waitlist, hash)
-				}
-			}
-			// If transactions are still waiting for propagation, reschedule the wait timer
-			if len(f.waittime) > 0 {
-				f.rescheduleWait(waitTimer, waitTrigger)
-			}
-			// If any peers became active and are idle, request transactions from them
-			if len(actives) > 0 {
-				f.scheduleFetches(timeoutTimer, timeoutTrigger, actives)
-			}
+		// case <-waitTrigger:
+		// 	// At least one transaction's waiting time ran out, push all expired
+		// 	// ones into the retrieval queues
+		// 	actives := make(map[string]struct{})
+		// 	for hash, instance := range f.waittime {
+		// 		if time.Duration(f.clock.Now()-instance)+txGatherSlack > txArriveTimeout {
+		// 			// Transaction expired without propagation, schedule for retrieval
+		// 			if f.announced[hash] != nil {
+		// 				panic("announce tracker already contains waitlist item")
+		// 			}
+		// 			f.announced[hash] = f.waitlist[hash]
+		// 			for peer := range f.waitlist[hash] {
+		// 				if announces := f.announces[peer]; announces != nil {
+		// 					announces[hash] = f.waitslots[peer][hash]
+		// 				} else {
+		// 					f.announces[peer] = map[common.Hash]*txMetadata{hash: f.waitslots[peer][hash]}
+		// 				}
+		// 				delete(f.waitslots[peer], hash)
+		// 				if len(f.waitslots[peer]) == 0 {
+		// 					delete(f.waitslots, peer)
+		// 				}
+		// 				actives[peer] = struct{}{}
+		// 			}
+		// 			delete(f.waittime, hash)
+		// 			delete(f.waitlist, hash)
+		// 		}
+		// 	}
+		// 	// If transactions are still waiting for propagation, reschedule the wait timer
+		// 	if len(f.waittime) > 0 {
+		// 		f.rescheduleWait(waitTimer, waitTrigger)
+		// 	}
+		// 	// If any peers became active and are idle, request transactions from them
+		// 	if len(actives) > 0 {
+		// 		f.scheduleFetches(timeoutTimer, timeoutTrigger, actives)
+		// 	}
 
 		case <-timeoutTrigger:
 			// Clean up any expired retrievals and avoid re-requesting them from the
@@ -586,72 +597,111 @@ func (f *TxFetcher) loop() {
 			// traces of the hash from internal trackers. That said, compare any
 			// advertised metadata with the real ones and drop bad peers.
 			for i, hash := range delivery.hashes {
-				if _, ok := f.waitlist[hash]; ok {
-					for peer, txset := range f.waitslots {
-						if meta := txset[hash]; meta != nil {
-							if delivery.metas[i].kind != meta.kind {
-								log.Warn("Announced transaction type mismatch", "peer", peer, "tx", hash, "type", delivery.metas[i].kind, "ann", meta.kind)
-								f.dropPeer(peer)
-							} else if delivery.metas[i].size != meta.size {
-								if math.Abs(float64(delivery.metas[i].size)-float64(meta.size)) > 8 {
-									log.Warn("Announced transaction size mismatch", "peer", peer, "tx", hash, "size", delivery.metas[i].size, "ann", meta.size)
+				// if _, ok := f.waitlist[hash]; ok {
+				// 	for peer, txset := range f.waitslots {
+				// 		if meta := txset[hash]; meta != nil {
+				// 			if delivery.metas[i].kind != meta.kind {
+				// 				log.Warn("Announced transaction type mismatch", "peer", peer, "tx", hash, "type", delivery.metas[i].kind, "ann", meta.kind)
+				// 				f.dropPeer(peer)
+				// 			} else if delivery.metas[i].size != meta.size {
+				// 				if math.Abs(float64(delivery.metas[i].size)-float64(meta.size)) > 8 {
+				// 					log.Warn("Announced transaction size mismatch", "peer", peer, "tx", hash, "size", delivery.metas[i].size, "ann", meta.size)
 
-									// Normally we should drop a peer considering this is a protocol violation.
-									// However, due to the RLP vs consensus format messyness, allow a few bytes
-									// wiggle-room where we only warn, but don't drop.
-									//
-									// TODO(karalabe): Get rid of this relaxation when clients are proven stable.
-									f.dropPeer(peer)
-								}
+				// 					// Normally we should drop a peer considering this is a protocol violation.
+				// 					// However, due to the RLP vs consensus format messyness, allow a few bytes
+				// 					// wiggle-room where we only warn, but don't drop.
+				// 					//
+				// 					// TODO(karalabe): Get rid of this relaxation when clients are proven stable.
+				// 					f.dropPeer(peer)
+				// 				}
+				// 			}
+				// 		}
+				// 		delete(txset, hash)
+				// 		if len(txset) == 0 {
+				// 			delete(f.waitslots, peer)
+				// 		}
+				// 	}
+				// 	delete(f.waitlist, hash)
+				// 	delete(f.waittime, hash)
+				// } else {
+				// 	for peer, txset := range f.announces {
+				// 		if meta := txset[hash]; meta != nil {
+				// 			if delivery.metas[i].kind != meta.kind {
+				// 				log.Warn("Announced transaction type mismatch", "peer", peer, "tx", hash, "type", delivery.metas[i].kind, "ann", meta.kind)
+				// 				f.dropPeer(peer)
+				// 			} else if delivery.metas[i].size != meta.size {
+				// 				if math.Abs(float64(delivery.metas[i].size)-float64(meta.size)) > 8 {
+				// 					log.Warn("Announced transaction size mismatch", "peer", peer, "tx", hash, "size", delivery.metas[i].size, "ann", meta.size)
+
+				// 					// Normally we should drop a peer considering this is a protocol violation.
+				// 					// However, due to the RLP vs consensus format messyness, allow a few bytes
+				// 					// wiggle-room where we only warn, but don't drop.
+				// 					//
+				// 					// TODO(karalabe): Get rid of this relaxation when clients are proven stable.
+				// 					f.dropPeer(peer)
+				// 				}
+				// 			}
+				// 		}
+				// 		delete(txset, hash)
+				// 		if len(txset) == 0 {
+				// 			delete(f.announces, peer)
+				// 		}
+				// 	}
+				// 	delete(f.announced, hash)
+				// 	delete(f.alternates, hash)
+
+				// 	// If a transaction currently being fetched from a different
+				// 	// origin was delivered (delivery stolen), mark it so the
+				// 	// actual delivery won't double schedule it.
+				// 	if origin, ok := f.fetching[hash]; ok && (origin != delivery.origin || !delivery.direct) {
+				// 		stolen := f.requests[origin].stolen
+				// 		if stolen == nil {
+				// 			f.requests[origin].stolen = make(map[common.Hash]struct{})
+				// 			stolen = f.requests[origin].stolen
+				// 		}
+				// 		stolen[hash] = struct{}{}
+				// 	}
+				// 	delete(f.fetching, hash)
+				// }
+
+				for peer, txset := range f.announces {
+					if meta := txset[hash]; meta != nil {
+						if delivery.metas[i].kind != meta.kind {
+							log.Warn("Announced transaction type mismatch", "peer", peer, "tx", hash, "type", delivery.metas[i].kind, "ann", meta.kind)
+							f.dropPeer(peer)
+						} else if delivery.metas[i].size != meta.size {
+							if math.Abs(float64(delivery.metas[i].size)-float64(meta.size)) > 8 {
+								log.Warn("Announced transaction size mismatch", "peer", peer, "tx", hash, "size", delivery.metas[i].size, "ann", meta.size)
+
+								// Normally we should drop a peer considering this is a protocol violation.
+								// However, due to the RLP vs consensus format messyness, allow a few bytes
+								// wiggle-room where we only warn, but don't drop.
+								//
+								// TODO(karalabe): Get rid of this relaxation when clients are proven stable.
+								f.dropPeer(peer)
 							}
 						}
-						delete(txset, hash)
-						if len(txset) == 0 {
-							delete(f.waitslots, peer)
-						}
 					}
-					delete(f.waitlist, hash)
-					delete(f.waittime, hash)
-				} else {
-					for peer, txset := range f.announces {
-						if meta := txset[hash]; meta != nil {
-							if delivery.metas[i].kind != meta.kind {
-								log.Warn("Announced transaction type mismatch", "peer", peer, "tx", hash, "type", delivery.metas[i].kind, "ann", meta.kind)
-								f.dropPeer(peer)
-							} else if delivery.metas[i].size != meta.size {
-								if math.Abs(float64(delivery.metas[i].size)-float64(meta.size)) > 8 {
-									log.Warn("Announced transaction size mismatch", "peer", peer, "tx", hash, "size", delivery.metas[i].size, "ann", meta.size)
-
-									// Normally we should drop a peer considering this is a protocol violation.
-									// However, due to the RLP vs consensus format messyness, allow a few bytes
-									// wiggle-room where we only warn, but don't drop.
-									//
-									// TODO(karalabe): Get rid of this relaxation when clients are proven stable.
-									f.dropPeer(peer)
-								}
-							}
-						}
-						delete(txset, hash)
-						if len(txset) == 0 {
-							delete(f.announces, peer)
-						}
+					delete(txset, hash)
+					if len(txset) == 0 {
+						delete(f.announces, peer)
 					}
-					delete(f.announced, hash)
-					delete(f.alternates, hash)
-
-					// If a transaction currently being fetched from a different
-					// origin was delivered (delivery stolen), mark it so the
-					// actual delivery won't double schedule it.
-					if origin, ok := f.fetching[hash]; ok && (origin != delivery.origin || !delivery.direct) {
-						stolen := f.requests[origin].stolen
-						if stolen == nil {
-							f.requests[origin].stolen = make(map[common.Hash]struct{})
-							stolen = f.requests[origin].stolen
-						}
-						stolen[hash] = struct{}{}
-					}
-					delete(f.fetching, hash)
 				}
+				delete(f.announced, hash)
+				delete(f.alternates, hash)
+
+				// If a transaction currently being fetched from a different
+				// origin was delivered (delivery stolen), mark it so the
+				// actual delivery won't double schedule it.
+				if origin, ok := f.fetching[hash]; ok && (origin != delivery.origin || !delivery.direct) {
+					stolen := f.requests[origin].stolen
+					if stolen == nil {
+						f.requests[origin].stolen = make(map[common.Hash]struct{})
+						stolen = f.requests[origin].stolen
+					}
+					stolen[hash] = struct{}{}
+				}
+				delete(f.fetching, hash)
 			}
 			// In case of a direct delivery, also reschedule anything missing
 			// from the original query
@@ -711,19 +761,19 @@ func (f *TxFetcher) loop() {
 
 		case drop := <-f.drop:
 			// A peer was dropped, remove all traces of it
-			if _, ok := f.waitslots[drop.peer]; ok {
-				for hash := range f.waitslots[drop.peer] {
-					delete(f.waitlist[hash], drop.peer)
-					if len(f.waitlist[hash]) == 0 {
-						delete(f.waitlist, hash)
-						delete(f.waittime, hash)
-					}
-				}
-				delete(f.waitslots, drop.peer)
-				if len(f.waitlist) > 0 {
-					f.rescheduleWait(waitTimer, waitTrigger)
-				}
-			}
+			// if _, ok := f.waitslots[drop.peer]; ok {
+			// 	for hash := range f.waitslots[drop.peer] {
+			// 		delete(f.waitlist[hash], drop.peer)
+			// 		if len(f.waitlist[hash]) == 0 {
+			// 			delete(f.waitlist, hash)
+			// 			delete(f.waittime, hash)
+			// 		}
+			// 	}
+			// 	delete(f.waitslots, drop.peer)
+			// 	if len(f.waitlist) > 0 {
+			// 		f.rescheduleWait(waitTimer, waitTrigger)
+			// 	}
+			// }
 			// Clean up any active requests
 			var request *txRequest
 			if request = f.requests[drop.peer]; request != nil {
@@ -766,8 +816,8 @@ func (f *TxFetcher) loop() {
 			return
 		}
 		// No idea what happened, but bump some sanity metrics
-		txFetcherWaitingPeers.Update(int64(len(f.waitslots)))
-		txFetcherWaitingHashes.Update(int64(len(f.waitlist)))
+		// txFetcherWaitingPeers.Update(int64(len(f.waitslots)))
+		// txFetcherWaitingHashes.Update(int64(len(f.waitlist)))
 		txFetcherQueueingPeers.Update(int64(len(f.announces) - len(f.requests)))
 		txFetcherQueueingHashes.Update(int64(len(f.announced)))
 		txFetcherFetchingPeers.Update(int64(len(f.requests)))
@@ -786,25 +836,25 @@ func (f *TxFetcher) loop() {
 // The method has a granularity of 'gatherSlack', since there's not much point in
 // spinning over all the transactions just to maybe find one that should trigger
 // a few ms earlier.
-func (f *TxFetcher) rescheduleWait(timer *mclock.Timer, trigger chan struct{}) {
-	if *timer != nil {
-		(*timer).Stop()
-	}
-	now := f.clock.Now()
+// func (f *TxFetcher) rescheduleWait(timer *mclock.Timer, trigger chan struct{}) {
+// 	if *timer != nil {
+// 		(*timer).Stop()
+// 	}
+// 	now := f.clock.Now()
 
-	earliest := now
-	for _, instance := range f.waittime {
-		if earliest > instance {
-			earliest = instance
-			if txArriveTimeout-time.Duration(now-earliest) < gatherSlack {
-				break
-			}
-		}
-	}
-	*timer = f.clock.AfterFunc(txArriveTimeout-time.Duration(now-earliest), func() {
-		trigger <- struct{}{}
-	})
-}
+// 	earliest := now
+// 	for _, instance := range f.waittime {
+// 		if earliest > instance {
+// 			earliest = instance
+// 			if txArriveTimeout-time.Duration(now-earliest) < gatherSlack {
+// 				break
+// 			}
+// 		}
+// 	}
+// 	*timer = f.clock.AfterFunc(txArriveTimeout-time.Duration(now-earliest), func() {
+// 		trigger <- struct{}{}
+// 	})
+// }
 
 // rescheduleTimeout iterates over all the transactions currently in flight and
 // schedules a cleanup run when the first would trigger.
