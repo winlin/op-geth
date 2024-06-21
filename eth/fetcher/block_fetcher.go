@@ -370,6 +370,7 @@ func (f *BlockFetcher) loop() {
 				f.forgetBlock(hash)
 				continue
 			}
+			log.Info("====Block", "Number", op.block.Number())
 			if f.light {
 				f.importHeaders(op.origin, op.header)
 			} else {
@@ -408,6 +409,8 @@ func (f *BlockFetcher) loop() {
 			if _, ok := f.completing[notification.hash]; ok {
 				break
 			}
+			log.Info("=====Notification", "Hash", notification.hash)
+
 			f.announces[notification.origin] = count
 			f.announced[notification.hash] = append(f.announced[notification.hash], notification)
 			if f.announceChangeHook != nil && len(f.announced[notification.hash]) == 1 {
@@ -456,6 +459,7 @@ func (f *BlockFetcher) loop() {
 					}
 				}
 			}
+			log.Info("=====FetchTimer", "A", "B")
 			// Send out all block header requests
 			for peer, hashes := range request {
 				log.Trace("Fetching scheduled headers", "peer", peer, "list", hashes)
@@ -514,6 +518,7 @@ func (f *BlockFetcher) loop() {
 					f.completing[hash] = announce
 				}
 			}
+			log.Info("=====completeTimer", "C", "D")
 			// Send out all block body requests
 			for peer, hashes := range request {
 				log.Trace("Fetching scheduled bodies", "peer", peer, "list", hashes)
@@ -626,6 +631,7 @@ func (f *BlockFetcher) loop() {
 			case <-f.quit:
 				return
 			}
+			log.Info("=====headerFilter", "C", "D")
 			// Schedule the retrieved headers for body completion
 			for _, announce := range incomplete {
 				hash := announce.header.Hash()
@@ -707,6 +713,7 @@ func (f *BlockFetcher) loop() {
 			case <-f.quit:
 				return
 			}
+			log.Info("=====bodyFilter", "C", "D")
 			// Schedule the retrieved blocks for ordered import
 			for _, block := range blocks {
 				if announce := f.completing[block.Hash()]; announce != nil {
