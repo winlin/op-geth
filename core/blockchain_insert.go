@@ -81,7 +81,7 @@ func (st *insertStats) report(chain []*types.Block, index int, snapDiffItems, sn
 			context = append(context, []interface{}{"ignored", st.ignored}...)
 		}
 		if setHead {
-			log.Info("Imported new chain segment", context...)
+			log.Info("Imported new chain segment?????", context...)
 		} else {
 			log.Info("Imported new potential chain segment", context...)
 		}
