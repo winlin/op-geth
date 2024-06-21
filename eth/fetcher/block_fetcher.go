@@ -461,7 +461,7 @@ func (f *BlockFetcher) loop() {
 				// }
 				first := announces[0]
 				if time.Since(first.time) > arriveTimeout-gatherSlack {
-					f.forgetHash(first.hash)
+					f.forgetAnnouncedHash(first.hash)
 					continue
 				}
 				if first.doFetchHeader {
