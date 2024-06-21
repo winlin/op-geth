@@ -416,8 +416,10 @@ func (f *BlockFetcher) loop() {
 				f.announceChangeHook(notification.hash, true)
 			}
 			if len(f.announced[notification.hash]) == 1 {
+				log.Info("notification:", len(f.announced), "hash:", notification.hash)
 				fetchTimer.Reset(0)
 			} else if len(f.announced) == 1 {
+				log.Info("notification:", len(f.announced), "hash:", notification.hash)
 				f.rescheduleFetch(fetchTimer)
 			}
 
@@ -460,6 +462,7 @@ func (f *BlockFetcher) loop() {
 				// 	}
 				// }
 				first := announces[0]
+				log.Info("first:", "time", time.Since(first.time), "arriveTimeout", arriveTimeout-gatherSlack, "hash", first.hash)
 				if time.Since(first.time) > arriveTimeout-gatherSlack {
 					f.forgetAnnouncedHash(first.hash)
 					continue
@@ -471,6 +474,7 @@ func (f *BlockFetcher) loop() {
 				if f.getBlock(hash) == nil {
 					request[first.origin] = append(request[first.origin], hash)
 					f.fetching[hash] = first
+					log.Info("=======", hash)
 				}
 			}
 			// Send out all block header requests
