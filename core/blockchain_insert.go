@@ -83,7 +83,7 @@ func (st *insertStats) report(chain []*types.Block, index int, snapDiffItems, sn
 		if setHead {
 			log.Info("Imported new chain segment?????", context...)
 		} else {
-			log.Info("Imported new potential chain segment", context...)
+			log.Info("Imported new potential chain segment????", context...)
 		}
 		// Bump the stats reported to the next section
 		*st = insertStats{startTime: now, lastIndex: index + 1}
