@@ -416,12 +416,14 @@ func (f *BlockFetcher) loop() {
 				f.announceChangeHook(notification.hash, true)
 			}
 			if len(f.announced[notification.hash]) == 1 {
-				log.Info("notification:", len(f.announced), "hash:", notification.hash)
+				log.Info("notification:", "length", len(f.announced), "hash:", notification.hash)
 				fetchTimer.Reset(0)
 			} else if len(f.announced) == 1 {
-				log.Info("notification:", len(f.announced), "hash:", notification.hash)
+				log.Info("notification:", "length", len(f.announced), "hash:", notification.hash)
 				f.rescheduleFetch(fetchTimer)
 			}
+
+			log.Info("notification2:", "hash", notification.hash)
 
 		case op := <-f.inject:
 			// A direct block insertion was requested, try and fill any pending gaps
@@ -474,7 +476,7 @@ func (f *BlockFetcher) loop() {
 				if f.getBlock(hash) == nil {
 					request[first.origin] = append(request[first.origin], hash)
 					f.fetching[hash] = first
-					log.Info("=======", hash)
+					log.Info("=======", "???", hash)
 				}
 			}
 			// Send out all block header requests
