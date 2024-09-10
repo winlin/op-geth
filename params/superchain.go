@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var OPStackSupport = ProtocolVersionV0{Build: [8]byte{}, Major: 8, Minor: 0, Patch: 0, PreRelease: 1}.Encode()
+var OPStackSupport = ProtocolVersionV0{Build: [8]byte{}, Major: 8, Minor: 0, Patch: 0, PreRelease: 0}.Encode()
 
 func init() {
 	for id, ch := range superchain.OPChains {
@@ -70,6 +70,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		EcotoneTime:                   chConfig.EcotoneTime,
 		FjordTime:                     chConfig.FjordTime,
 		GraniteTime:                   chConfig.GraniteTime,
+		HoloceneTime:                  chConfig.HoloceneTime,
 		TerminalTotalDifficulty:       common.Big0,
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
