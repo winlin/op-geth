@@ -55,8 +55,12 @@ type Config struct {
 	GasPrice            *big.Int       // Minimum gas price for mining a transaction
 	Recommit            time.Duration  // The time interval for miner to re-create mining work.
 
-	RollupComputePendingBlock bool   // Compute the pending block from tx-pool, instead of copying the latest-block
-	EffectiveGasCeil          uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+	RollupComputePendingBlock             bool // Compute the pending block from tx-pool, instead of copying the latest-block
+	RollupTransactionConditionalRateLimit int  // Total number of conditional cost units allowed in a second
+
+	EffectiveGasCeil uint64   // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+	MaxDATxSize      *big.Int // if non-nil, don't include any txs with data availability size larger than this in any built block
+	MaxDABlockSize   *big.Int // if non-nil, then don't build a block requiring more than this amount of total data availability
 }
 
 // DefaultConfig contains default settings for miner.
@@ -150,9 +154,25 @@ func (miner *Miner) SetGasTip(tip *big.Int) error {
 	return nil
 }
 
+// SetMaxDASize sets the maximum data availability size currently allowed for inclusion. 0 means no maximum.
+func (miner *Miner) SetMaxDASize(maxTxSize, maxBlockSize *big.Int) {
+	miner.confMu.Lock()
+	if maxTxSize == nil || maxTxSize.BitLen() == 0 {
+		miner.config.MaxDATxSize = nil
+	} else {
+		miner.config.MaxDATxSize = new(big.Int).Set(maxTxSize)
+	}
+	if maxBlockSize == nil || maxBlockSize.BitLen() == 0 {
+		miner.config.MaxDABlockSize = nil
+	} else {
+		miner.config.MaxDABlockSize = new(big.Int).Set(maxBlockSize)
+	}
+	miner.confMu.Unlock()
+}
+
 // BuildPayload builds the payload according to the provided parameters.
-func (miner *Miner) BuildPayload(args *BuildPayloadArgs) (*Payload, error) {
-	return miner.buildPayload(args)
+func (miner *Miner) BuildPayload(args *BuildPayloadArgs, witness bool) (*Payload, error) {
+	return miner.buildPayload(args, witness)
 }
 
 // getPending retrieves the pending block based on the current head block.
@@ -181,7 +201,7 @@ func (miner *Miner) getPending() *newPayloadResult {
 		withdrawals: withdrawal,
 		beaconRoot:  nil,
 		noTxs:       false,
-	})
+	}, false) // we will never make a witness for a pending block
 	if ret.err != nil {
 		return nil
 	}
