@@ -86,7 +86,7 @@ func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uin
 			blobBalanceUsage.Mul(blobBalanceUsage, blobGasPerBlob)
 			blobBalanceUsage.Mul(blobBalanceUsage, call.BlobGasFeeCap)
 			if blobBalanceUsage.Cmp(available) >= 0 {
-				return 0, nil, core.ErrInsufficientFunds
+				return 0, nil, nil, core.ErrInsufficientFunds
 			}
 			available.Sub(available, blobBalanceUsage)
 		}
@@ -223,8 +223,16 @@ func run(ctx context.Context, call *core.Message, opts *Options) (*core.Executio
 		evmContext = core.NewEVMBlockContext(opts.Header, opts.Chain, nil, opts.Config, opts.State)
 
 		dirtyState = opts.State.Copy()
-		evm        = vm.NewEVM(evmContext, msgContext, dirtyState, opts.Config, vm.Config{NoBaseFee: true})
 	)
+	// Lower the basefee to 0 to avoid breaking EVM
+	// invariants (basefee < feecap).
+	if msgContext.GasPrice.Sign() == 0 {
+		evmContext.BaseFee = new(big.Int)
+	}
+	if msgContext.BlobFeeCap != nil && msgContext.BlobFeeCap.BitLen() == 0 {
+		evmContext.BlobBaseFee = new(big.Int)
+	}
+	evm := vm.NewEVM(evmContext, msgContext, dirtyState, opts.Config, vm.Config{NoBaseFee: true})
 	// Monitor the outer context and interrupt the EVM upon cancellation. To avoid
 	// a dangling goroutine until the outer estimation finishes, create an internal
 	// context for the lifetime of this method call.
