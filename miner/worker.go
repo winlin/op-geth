@@ -70,6 +70,7 @@ type environment struct {
 	tcount   int            // tx count in cycle
 	gasPool  *core.GasPool  // available gas used to pack transactions
 	coinbase common.Address
+	evm      *vm.EVM
 
 	header   *types.Header
 	txs      []*types.Transaction
@@ -191,14 +192,11 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 			return &newPayloadResult{err: err}
 		}
 		requests = append(requests, depositRequests)
-		// create EVM for system calls
-		blockContext := core.NewEVMBlockContext(work.header, miner.chain, &work.header.Coinbase, miner.chainConfig, work.state)
-		vmenv := vm.NewEVM(blockContext, vm.TxContext{}, work.state, miner.chainConfig, vm.Config{})
 		// EIP-7002 withdrawals
-		withdrawalRequests := core.ProcessWithdrawalQueue(vmenv, work.state)
+		withdrawalRequests := core.ProcessWithdrawalQueue(work.evm, work.state)
 		requests = append(requests, withdrawalRequests)
 		// EIP-7251 consolidations
-		consolidationRequests := core.ProcessConsolidationQueue(vmenv, work.state)
+		consolidationRequests := core.ProcessConsolidationQueue(work.evm, work.state)
 		requests = append(requests, consolidationRequests)
 	}
 	if requests != nil {
@@ -321,14 +319,10 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	env.noTxs = genParams.noTxs
 	if header.ParentBeaconRoot != nil {
-		context := core.NewEVMBlockContext(header, miner.chain, nil, miner.chainConfig, env.state)
-		vmenv := vm.NewEVM(context, vm.TxContext{}, env.state, miner.chainConfig, vm.Config{})
-		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, vmenv, env.state)
+		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, env.evm, env.state)
 	}
 	if miner.chainConfig.IsPrague(header.Number, header.Time) {
-		context := core.NewEVMBlockContext(header, miner.chain, nil, miner.chainConfig, env.state)
-		vmenv := vm.NewEVM(context, vm.TxContext{}, env.state, miner.chainConfig, vm.Config{})
-		core.ProcessParentBlockHash(header.ParentHash, vmenv, env.state)
+		core.ProcessParentBlockHash(header.ParentHash, env.evm, env.state)
 	}
 	return env, nil
 }
@@ -367,6 +361,7 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 		coinbase: coinbase,
 		header:   header,
 		witness:  state.Witness(),
+		evm:      vm.NewEVM(core.NewEVMBlockContext(header, miner.chain, &coinbase, miner.chainConfig, state), state, miner.chainConfig, vm.Config{}),
 		rpcCtx:   rpcCtx,
 	}, nil
 }
@@ -454,7 +449,7 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 			},
 		}
 	}
-	receipt, err := core.ApplyTransactionExtended(miner.chainConfig, miner.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, vm.Config{}, extraOpts)
+	receipt, err := core.ApplyTransactionExtended(miner.chainConfig, env.evm, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, extraOpts)
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		env.gasPool.SetGas(gp)
