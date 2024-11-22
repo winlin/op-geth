@@ -193,10 +193,10 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		}
 		requests = append(requests, depositRequests)
 		// EIP-7002 withdrawals
-		withdrawalRequests := core.ProcessWithdrawalQueue(work.evm, work.state)
+		withdrawalRequests := core.ProcessWithdrawalQueue(work.evm)
 		requests = append(requests, withdrawalRequests)
 		// EIP-7251 consolidations
-		consolidationRequests := core.ProcessConsolidationQueue(work.evm, work.state)
+		consolidationRequests := core.ProcessConsolidationQueue(work.evm)
 		requests = append(requests, consolidationRequests)
 	}
 	if requests != nil {
@@ -319,10 +319,10 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	env.noTxs = genParams.noTxs
 	if header.ParentBeaconRoot != nil {
-		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, env.evm, env.state)
+		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, env.evm)
 	}
 	if miner.chainConfig.IsPrague(header.Number, header.Time) {
-		core.ProcessParentBlockHash(header.ParentHash, env.evm, env.state)
+		core.ProcessParentBlockHash(header.ParentHash, env.evm)
 	}
 	return env, nil
 }
@@ -449,7 +449,7 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 			},
 		}
 	}
-	receipt, err := core.ApplyTransactionExtended(miner.chainConfig, env.evm, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, extraOpts)
+	receipt, err := core.ApplyTransaction(env.evm, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, extraOpts)
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		env.gasPool.SetGas(gp)
