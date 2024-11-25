@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"math/big"
 	"time"
 
@@ -189,7 +188,7 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 			Tracer:    tracer.Hooks(),
 		}
 	)
-	var tracingStateDB = vm.StateDB(sim.state)
+	tracingStateDB := vm.StateDB(sim.state)
 	if hooks := tracer.Hooks(); hooks != nil {
 		tracingStateDB = state.NewHookedState(sim.state, hooks)
 	}
@@ -292,7 +291,7 @@ func (sim *simulator) activePrecompiles(base *types.Header) vm.PrecompiledContra
 		isMerge = (base.Difficulty.Sign() == 0)
 		rules   = sim.chainConfig.Rules(base.Number, isMerge, base.Time)
 	)
-	return maps.Clone(vm.ActivePrecompiledContracts(rules))
+	return vm.ActivePrecompiledContracts(rules)
 }
 
 // sanitizeChain checks the chain integrity. Specifically it checks that
