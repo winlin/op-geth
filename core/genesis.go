@@ -592,9 +592,7 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 			}
 		}
 		if conf.IsPrague(num, g.Timestamp) {
-			emptyRequests := [][]byte{{0x00}, {0x01}, {0x02}}
-			rhash := types.CalcRequestsHash(emptyRequests)
-			head.RequestsHash = &rhash
+			head.RequestsHash = &types.EmptyRequestsHash
 		}
 		// If Isthmus is active at genesis, set the WithdrawalRoot to the storage root of the L2ToL1MessagePasser contract.
 		if g.Config.IsOptimismIsthmus(g.Timestamp) {
