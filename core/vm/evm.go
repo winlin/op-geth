@@ -624,7 +624,7 @@ func (evm *EVM) GetVMContext() *tracing.VMContext {
 		BlockNumber: evm.Context.BlockNumber,
 		Time:        evm.Context.Time,
 		Random:      evm.Context.Random,
-		GasPrice:    evm.TxContext.GasPrice,
+		BaseFee:     evm.Context.BaseFee,
 		StateDB:     evm.StateDB,
 	}
 }

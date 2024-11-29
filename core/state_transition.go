@@ -201,10 +201,11 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg *Message, gp *GasPool) (*ExecutionResult, error) {
-	return NewStateTransition(evm, msg, gp).TransitionDb()
+	evm.SetTxContext(NewEVMTxContext(msg))
+	return newStateTransition(evm, msg, gp).execute()
 }
 
-// StateTransition represents a state transition.
+// stateTransition represents a state transition.
 //
 // == The State Transitioning Model
 //
@@ -226,7 +227,7 @@ func ApplyMessage(evm *vm.EVM, msg *Message, gp *GasPool) (*ExecutionResult, err
 //
 //  5. Run Script section
 //  6. Derive new state root
-type StateTransition struct {
+type stateTransition struct {
 	gp           *GasPool
 	msg          *Message
 	gasRemaining uint64
@@ -235,9 +236,9 @@ type StateTransition struct {
 	evm          *vm.EVM
 }
 
-// NewStateTransition initialises and returns a new state transition object.
-func NewStateTransition(evm *vm.EVM, msg *Message, gp *GasPool) *StateTransition {
-	return &StateTransition{
+// newStateTransition initialises and returns a new state transition object.
+func newStateTransition(evm *vm.EVM, msg *Message, gp *GasPool) *stateTransition {
+	return &stateTransition{
 		gp:    gp,
 		evm:   evm,
 		msg:   msg,
@@ -246,14 +247,14 @@ func NewStateTransition(evm *vm.EVM, msg *Message, gp *GasPool) *StateTransition
 }
 
 // to returns the recipient of the message.
-func (st *StateTransition) to() common.Address {
+func (st *stateTransition) to() common.Address {
 	if st.msg == nil || st.msg.To == nil /* contract creation */ {
 		return common.Address{}
 	}
 	return *st.msg.To
 }
 
-func (st *StateTransition) buyGas() error {
+func (st *stateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval.Mul(mgval, st.msg.GasPrice)
 	var l1Cost *big.Int
@@ -307,7 +308,7 @@ func (st *StateTransition) buyGas() error {
 	return nil
 }
 
-func (st *StateTransition) preCheck() error {
+func (st *stateTransition) preCheck() error {
 	if st.msg.IsDepositTx {
 		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
 		// Gas is free, but no refunds!
@@ -407,7 +408,7 @@ func (st *StateTransition) preCheck() error {
 	return st.buyGas()
 }
 
-// TransitionDb will transition the state by applying the current message and
+// execute will transition the state by applying the current message and
 // returning the evm execution result with following fields.
 //
 //   - used gas: total gas used (including gas being refunded)
@@ -417,7 +418,7 @@ func (st *StateTransition) preCheck() error {
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
-func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+func (st *stateTransition) execute() (*ExecutionResult, error) {
 	if mint := st.msg.Mint; mint != nil {
 		mintU256, overflow := uint256.FromBig(mint)
 		if overflow {
@@ -427,7 +428,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}
 	snap := st.state.Snapshot()
 
-	result, err := st.innerTransitionDb()
+	result, err := st.innerExecute()
 	// Failed deposits must still be included. Unless we cannot produce the block at all due to the gas limit.
 	// On deposit failure, we rewind any state changes from after the minting, and increment the nonce.
 	if err != nil && err != ErrGasLimitReached && st.msg.IsDepositTx {
@@ -463,7 +464,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	return result, err
 }
 
-func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
+func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
@@ -627,7 +628,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	}, nil
 }
 
-func (st *StateTransition) refundGas(refundQuotient uint64) uint64 {
+func (st *stateTransition) refundGas(refundQuotient uint64) uint64 {
 	// Apply refund counter, capped to a refund quotient
 	refund := st.gasUsed() / refundQuotient
 	if refund > st.state.GetRefund() {
@@ -657,11 +658,11 @@ func (st *StateTransition) refundGas(refundQuotient uint64) uint64 {
 }
 
 // gasUsed returns the amount of gas used up by the state transition.
-func (st *StateTransition) gasUsed() uint64 {
+func (st *stateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gasRemaining
 }
 
 // blobGasUsed returns the amount of blob gas used by the message.
-func (st *StateTransition) blobGasUsed() uint64 {
+func (st *stateTransition) blobGasUsed() uint64 {
 	return uint64(len(st.msg.BlobHashes) * params.BlobTxBlobGasPerBlob)
 }

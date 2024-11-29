@@ -141,10 +141,6 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 		}
 	}
 
-	// Create a new context to be used in the EVM environment.
-	txContext := NewEVMTxContext(msg)
-	evm.SetTxContext(txContext)
-
 	nonce := tx.Nonce()
 	if msg.IsDepositTx && evm.ChainConfig().IsOptimismRegolith(evm.Context.Time) {
 		nonce = statedb.GetNonce(msg.From)
@@ -155,7 +151,6 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	if err != nil {
 		return nil, err
 	}
-
 	// Update the state with pending changes.
 	var root []byte
 	if evm.ChainConfig().IsByzantium(blockNumber) {
