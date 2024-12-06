@@ -16,16 +16,16 @@ require (
 	github.com/cespare/cp v0.1.0
 	github.com/cloudflare/cloudflare-go v0.79.0
 	github.com/cockroachdb/pebble v1.1.2
-	github.com/consensys/gnark-crypto v0.12.1
-	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c
-	github.com/crate-crypto/go-kzg-4844 v1.0.0
+	github.com/consensys/gnark-crypto v0.14.0
+	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a
+	github.com/crate-crypto/go-kzg-4844 v1.1.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
 	github.com/ethereum/c-kzg-4844 v1.0.0
-	github.com/ethereum/go-verkle v0.1.1-0.20240829091221-dffa7562dbe9
+	github.com/ethereum/go-verkle v0.2.2
 	github.com/fatih/color v1.16.0
 	github.com/ferranbt/fastssz v0.1.2
 	github.com/fjl/gencodec v0.0.0-20230517082657-f9840df7b83e
@@ -68,8 +68,8 @@ require (
 	go.uber.org/automaxprocs v1.5.2
 	golang.org/x/crypto v0.28.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	golang.org/x/sync v0.8.0
-	golang.org/x/sys v0.26.0
+	golang.org/x/sync v0.10.0
+	golang.org/x/sys v0.28.0
 	golang.org/x/text v0.19.0
 	golang.org/x/time v0.5.0
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
@@ -93,14 +93,14 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.23.2 // indirect
 	github.com/aws/smithy-go v1.15.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.13.0 // indirect
+	github.com/bits-and-blooms/bitset v1.17.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
-	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/consensys/bavard v0.1.22 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/deepmap/oapi-codegen v1.6.0 // indirect
 	github.com/dlclark/regexp2 v1.7.0 // indirect
@@ -136,7 +136,7 @@ require (
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
