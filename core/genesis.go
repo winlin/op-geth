@@ -381,6 +381,10 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	// Get the existing chain configuration.
 	newcfg := genesis.configOrDefault(stored)
 	applyOverrides(newcfg)
+
+	newData, _ := json.Marshal(newcfg)
+	log.Info("New config", "json", newData)
+
 	if err := newcfg.CheckConfigForkOrder(); err != nil {
 		return newcfg, common.Hash{}, err
 	}
@@ -390,7 +394,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		rawdb.WriteChainConfig(db, stored, newcfg)
 		return newcfg, stored, nil
 	}
+
 	storedData, _ := json.Marshal(storedcfg)
+	log.Info("Stored config", "json", storedData)
 	// Special case: if a private network is being used (no genesis and also no
 	// mainnet hash in the database), we must not apply the `configOrDefault`
 	// chain config as that would be AllProtocolChanges (applying any new fork
@@ -415,8 +421,11 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		return newcfg, stored, compatErr
 	}
 	// Don't overwrite if the old is identical to the new
-	if newData, _ := json.Marshal(newcfg); !bytes.Equal(storedData, newData) {
+	if !bytes.Equal(storedData, newData) {
+		log.Info("Configs differ")
 		rawdb.WriteChainConfig(db, stored, newcfg)
+	} else {
+		log.Info("Configs equal")
 	}
 	return newcfg, stored, nil
 }
