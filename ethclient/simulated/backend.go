@@ -113,7 +113,7 @@ func NewBackendFromConfig(conf ethconfig.Config) *Backend {
 		panic(err)
 	}
 
-	conf.SyncMode = downloader.FullSync
+	conf.SyncMode = ethconfig.FullSync
 	conf.TxPool.NoLocals = true
 	sim, err := newWithNode(stack, &conf, 0)
 	if err != nil {

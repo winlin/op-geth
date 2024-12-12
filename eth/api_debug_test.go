@@ -254,6 +254,6 @@ func TestExecutionWitness(t *testing.T) {
 	witness, err := generateWitness(chain, block)
 	require.NoError(t, err)
 
-	_, _, err = core.ExecuteStateless(params.TestChainConfig, block, witness)
+	_, _, err = core.ExecuteStateless(params.TestChainConfig, *chain.GetVMConfig(), block, witness)
 	require.NoError(t, err)
 }

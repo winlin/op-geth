@@ -47,6 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/ethapi/override"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -336,7 +337,8 @@ func TestStateHooks(t *testing.T) {
 				Value:    big.NewInt(1000),
 				Gas:      params.TxGas,
 				GasPrice: b.BaseFee(),
-				Data:     nil}),
+				Data:     nil,
+			}),
 				signer, key)
 			b.AddTx(tx)
 			nonce++
@@ -382,7 +384,8 @@ func TestTraceCall(t *testing.T) {
 			Value:    big.NewInt(1000),
 			Gas:      params.TxGas,
 			GasPrice: b.BaseFee(),
-			Data:     nil}),
+			Data:     nil,
+		}),
 			signer, accounts[0].key)
 		b.AddTx(tx)
 		nonce++
@@ -395,7 +398,8 @@ func TestTraceCall(t *testing.T) {
 				Value:    big.NewInt(1000),
 				Gas:      params.TxGas,
 				GasPrice: b.BaseFee(),
-				Data:     nil}),
+				Data:     nil,
+			}),
 				signer, accounts[0].key)
 			b.AddTx(tx)
 			nonce++
@@ -407,7 +411,8 @@ func TestTraceCall(t *testing.T) {
 				Value:    big.NewInt(1000),
 				Gas:      params.TxGas,
 				GasPrice: b.BaseFee(),
-				Data:     nil}),
+				Data:     nil,
+			}),
 				signer, accounts[0].key)
 			b.AddTx(tx)
 			nonce++
@@ -418,7 +423,7 @@ func TestTraceCall(t *testing.T) {
 
 	defer backend.teardown()
 	api := NewAPI(backend)
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		call        ethapi.TransactionArgs
 		config      *TraceCallConfig
@@ -504,7 +509,7 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: fmt.Errorf("block #%d not found", genBlocks+1),
-			//expect:    nil,
+			// expect:    nil,
 		},
 		// Standard JSON trace upon the latest block
 		{
@@ -536,7 +541,7 @@ func TestTraceCall(t *testing.T) {
 				Input: &hexutil.Bytes{0x43}, // blocknumber
 			},
 			config: &TraceCallConfig{
-				BlockOverrides: &ethapi.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
+				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
 			},
 			expectErr: nil,
 			expect: ` {"gas":53018,"failed":false,"returnValue":"","structLogs":[
@@ -598,7 +603,8 @@ func TestTraceTransaction(t *testing.T) {
 			Value:    big.NewInt(1000),
 			Gas:      params.TxGas,
 			GasPrice: b.BaseFee(),
-			Data:     nil}),
+			Data:     nil,
+		}),
 			signer, accounts[0].key)
 		b.AddTx(tx)
 		target = tx.Hash()
@@ -622,6 +628,7 @@ func TestTraceTransaction(t *testing.T) {
 		t.Error("Transaction tracing result is different")
 	}
 }
+
 func TestTraceTransactionHistorical(t *testing.T) {
 	t.Parallel()
 
@@ -653,7 +660,7 @@ func TestTraceTransactionHistorical(t *testing.T) {
 			Gas:         params.TxGas,
 			Failed:      false,
 			ReturnValue: "",
-			StructLogs:  []logger.StructLogRes{},
+			StructLogs:  []json.RawMessage{},
 		},
 		nil)
 	api := NewAPI(backend)
@@ -670,7 +677,7 @@ func TestTraceTransactionHistorical(t *testing.T) {
 		Gas:         params.TxGas,
 		Failed:      false,
 		ReturnValue: "",
-		StructLogs:  []logger.StructLogRes{},
+		StructLogs:  []json.RawMessage{},
 	}) {
 		t.Error("Transaction tracing result is different")
 	}
@@ -702,7 +709,8 @@ func TestTraceBlock(t *testing.T) {
 			Value:    big.NewInt(1000),
 			Gas:      params.TxGas,
 			GasPrice: b.BaseFee(),
-			Data:     nil}),
+			Data:     nil,
+		}),
 			signer, accounts[0].key)
 		b.AddTx(tx)
 		txHash = tx.Hash()
@@ -710,7 +718,7 @@ func TestTraceBlock(t *testing.T) {
 	defer backend.chain.Stop()
 	api := NewAPI(backend)
 
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		config      *TraceConfig
 		want        string
@@ -852,7 +860,8 @@ func TestTracingWithOverrides(t *testing.T) {
 			Value:    big.NewInt(1000),
 			Gas:      params.TxGas,
 			GasPrice: b.BaseFee(),
-			Data:     nil}),
+			Data:     nil,
+		}),
 			signer, accounts[0].key)
 		b.AddTx(tx)
 	})
@@ -864,7 +873,7 @@ func TestTracingWithOverrides(t *testing.T) {
 		Failed      bool
 		ReturnValue string
 	}
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		call        ethapi.TransactionArgs
 		config      *TraceCallConfig
@@ -880,8 +889,8 @@ func TestTracingWithOverrides(t *testing.T) {
 				Value: (*hexutil.Big)(big.NewInt(1000)),
 			},
 			config: &TraceCallConfig{
-				StateOverrides: &ethapi.StateOverride{
-					randomAccounts[0].addr: ethapi.OverrideAccount{Balance: newRPCBalance(new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Ether)))},
+				StateOverrides: &override.StateOverride{
+					randomAccounts[0].addr: override.OverrideAccount{Balance: newRPCBalance(new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Ether)))},
 				},
 			},
 			want: `{"gas":21000,"failed":false,"returnValue":""}`,
@@ -921,9 +930,9 @@ func TestTracingWithOverrides(t *testing.T) {
 				Data: newRPCBytes(common.Hex2Bytes("8381f58a")), // call number()
 			},
 			config: &TraceCallConfig{
-				//Tracer: &tracer,
-				StateOverrides: &ethapi.StateOverride{
-					randomAccounts[2].addr: ethapi.OverrideAccount{
+				// Tracer: &tracer,
+				StateOverrides: &override.StateOverride{
+					randomAccounts[2].addr: override.OverrideAccount{
 						Code:      newRPCBytes(common.Hex2Bytes("6080604052348015600f57600080fd5b506004361060285760003560e01c80638381f58a14602d575b600080fd5b60336049565b6040518082815260200191505060405180910390f35b6000548156fea2646970667358221220eab35ffa6ab2adfe380772a48b8ba78e82a1b820a18fcb6f59aa4efb20a5f60064736f6c63430007040033")),
 						StateDiff: newStates([]common.Hash{{}}, []common.Hash{common.BigToHash(big.NewInt(123))}),
 					},
@@ -939,7 +948,7 @@ func TestTracingWithOverrides(t *testing.T) {
 				Input: newRPCBytes(common.Hex2Bytes("4360005260206000f3")),
 			},
 			config: &TraceCallConfig{
-				BlockOverrides: &ethapi.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
+				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
 			},
 			want: `{"gas":59537,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000001337"}`,
 		},
@@ -959,7 +968,7 @@ func TestTracingWithOverrides(t *testing.T) {
 				}, // blocknumber
 			},
 			config: &TraceCallConfig{
-				BlockOverrides: &ethapi.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
+				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
 			},
 			want: `{"gas":72666,"failed":false,"returnValue":"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}`,
 		},
@@ -989,8 +998,8 @@ func TestTracingWithOverrides(t *testing.T) {
 				Data: newRPCBytes(common.Hex2Bytes("f8a8fd6d")), //
 			},
 			config: &TraceCallConfig{
-				StateOverrides: &ethapi.StateOverride{
-					randomAccounts[2].addr: ethapi.OverrideAccount{
+				StateOverrides: &override.StateOverride{
+					randomAccounts[2].addr: override.OverrideAccount{
 						Code: newRPCBytes(common.Hex2Bytes("6080604052348015600f57600080fd5b506004361060325760003560e01c806366e41cb7146037578063f8a8fd6d14603f575b600080fd5b603d6057565b005b60456062565b60405190815260200160405180910390f35b610539600090815580fd5b60006001600081905550306001600160a01b03166366e41cb76040518163ffffffff1660e01b8152600401600060405180830381600087803b15801560a657600080fd5b505af192505050801560b6575060015b60e9573d80801560e1576040519150601f19603f3d011682016040523d82523d6000602084013e60e6565b606091505b50505b506000549056fea26469706673582212205ce45de745a5308f713cb2f448589177ba5a442d1a2eff945afaa8915961b4d064736f6c634300080c0033")),
 					},
 				},
@@ -1005,14 +1014,14 @@ func TestTracingWithOverrides(t *testing.T) {
 				Data: newRPCBytes(common.Hex2Bytes("f8a8fd6d")), //
 			},
 			config: &TraceCallConfig{
-				StateOverrides: &ethapi.StateOverride{
-					randomAccounts[2].addr: ethapi.OverrideAccount{
+				StateOverrides: &override.StateOverride{
+					randomAccounts[2].addr: override.OverrideAccount{
 						Code:  newRPCBytes(common.Hex2Bytes("6080604052348015600f57600080fd5b506004361060325760003560e01c806366e41cb7146037578063f8a8fd6d14603f575b600080fd5b603d6057565b005b60456062565b60405190815260200160405180910390f35b610539600090815580fd5b60006001600081905550306001600160a01b03166366e41cb76040518163ffffffff1660e01b8152600401600060405180830381600087803b15801560a657600080fd5b505af192505050801560b6575060015b60e9573d80801560e1576040519150601f19603f3d011682016040523d82523d6000602084013e60e6565b606091505b50505b506000549056fea26469706673582212205ce45de745a5308f713cb2f448589177ba5a442d1a2eff945afaa8915961b4d064736f6c634300080c0033")),
 						State: newStates([]common.Hash{{}}, []common.Hash{{}}),
 					},
 				},
 			},
-			//want: `{"gas":46900,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000539"}`,
+			// want: `{"gas":46900,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000539"}`,
 			want: `{"gas":44100,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000001"}`,
 		},
 		{ // No state override
@@ -1023,8 +1032,8 @@ func TestTracingWithOverrides(t *testing.T) {
 				Data: newRPCBytes(common.Hex2Bytes("f8a8fd6d")), //
 			},
 			config: &TraceCallConfig{
-				StateOverrides: &ethapi.StateOverride{
-					storageAccount: ethapi.OverrideAccount{
+				StateOverrides: &override.StateOverride{
+					storageAccount: override.OverrideAccount{
 						Code: newRPCBytes([]byte{
 							// SLOAD(3) + SLOAD(4) (which is 0x77)
 							byte(vm.PUSH1), 0x04,
@@ -1037,7 +1046,7 @@ func TestTracingWithOverrides(t *testing.T) {
 							byte(vm.MSTORE),
 							// RETURN (0, 32)
 							byte(vm.PUSH1), 32,
-							byte(vm.PUSH1), 00,
+							byte(vm.PUSH1), 0o0,
 							byte(vm.RETURN),
 						}),
 					},
@@ -1058,8 +1067,8 @@ func TestTracingWithOverrides(t *testing.T) {
 				Data: newRPCBytes(common.Hex2Bytes("f8a8fd6d")), //
 			},
 			config: &TraceCallConfig{
-				StateOverrides: &ethapi.StateOverride{
-					storageAccount: ethapi.OverrideAccount{
+				StateOverrides: &override.StateOverride{
+					storageAccount: override.OverrideAccount{
 						Code: newRPCBytes([]byte{
 							// SLOAD(3) + SLOAD(4) (which is now 0x11 + 0x00)
 							byte(vm.PUSH1), 0x04,
@@ -1072,7 +1081,7 @@ func TestTracingWithOverrides(t *testing.T) {
 							byte(vm.MSTORE),
 							// RETURN (0, 32)
 							byte(vm.PUSH1), 32,
-							byte(vm.PUSH1), 00,
+							byte(vm.PUSH1), 0o0,
 							byte(vm.RETURN),
 						}),
 						State: newStates(
@@ -1096,8 +1105,8 @@ func TestTracingWithOverrides(t *testing.T) {
 				Data: newRPCBytes(common.Hex2Bytes("f8a8fd6d")), //
 			},
 			config: &TraceCallConfig{
-				StateOverrides: &ethapi.StateOverride{
-					storageAccount: ethapi.OverrideAccount{
+				StateOverrides: &override.StateOverride{
+					storageAccount: override.OverrideAccount{
 						Code: newRPCBytes([]byte{
 							// SLOAD(3) + SLOAD(4) (which is now 0x11 + 0x44)
 							byte(vm.PUSH1), 0x04,
@@ -1110,7 +1119,7 @@ func TestTracingWithOverrides(t *testing.T) {
 							byte(vm.MSTORE),
 							// RETURN (0, 32)
 							byte(vm.PUSH1), 32,
-							byte(vm.PUSH1), 00,
+							byte(vm.PUSH1), 0o0,
 							byte(vm.RETURN),
 						}),
 						StateDiff: map[common.Hash]common.Hash{
@@ -1223,7 +1232,7 @@ func TestTraceChain(t *testing.T) {
 	api := NewAPI(backend)
 
 	single := `{"txHash":"0x0000000000000000000000000000000000000000000000000000000000000000","result":{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}}`
-	var cases = []struct {
+	cases := []struct {
 		start  uint64
 		end    uint64
 		config *TraceConfig
@@ -1311,7 +1320,7 @@ func TestTraceBlockWithBasefee(t *testing.T) {
 	genBlocks := 1
 	signer := types.HomesteadSigner{}
 	var txHash common.Hash
-	var baseFee = new(big.Int)
+	baseFee := new(big.Int)
 	backend := newTestMergedBackend(t, genBlocks, genesis, func(i int, b *core.BlockGen) {
 		tx, _ := types.SignTx(types.NewTx(&types.LegacyTx{
 			Nonce:    uint64(i),
@@ -1319,7 +1328,8 @@ func TestTraceBlockWithBasefee(t *testing.T) {
 			Value:    big.NewInt(0),
 			Gas:      5 * params.TxGas,
 			GasPrice: b.BaseFee(),
-			Data:     nil}),
+			Data:     nil,
+		}),
 			signer, accounts[0].key)
 		b.AddTx(tx)
 		txHash = tx.Hash()
@@ -1328,7 +1338,7 @@ func TestTraceBlockWithBasefee(t *testing.T) {
 	defer backend.chain.Stop()
 	api := NewAPI(backend)
 
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		config      *TraceConfig
 		want        string
