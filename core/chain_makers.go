@@ -318,7 +318,7 @@ func (b *BlockGen) collectRequests(readonly bool) (requests [][]byte) {
 			panic(fmt.Sprintf("failed to parse deposit log: %v", err))
 		}
 		// create EVM for system calls
-		blockContext := NewEVMBlockContext(b.header, b.cm, &b.header.Coinbase)
+		blockContext := NewEVMBlockContext(b.header, b.cm, &b.header.Coinbase, b.cm.config, b.statedb)
 		evm := vm.NewEVM(blockContext, statedb, b.cm.config, vm.Config{})
 		// EIP-7002
 		ProcessWithdrawalQueue(&requests, evm)
@@ -386,7 +386,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 
 		if config.IsPrague(b.header.Number, b.header.Time) {
 			// EIP-2935
-			blockContext := NewEVMBlockContext(b.header, cm, &b.header.Coinbase)
+			blockContext := NewEVMBlockContext(b.header, cm, &b.header.Coinbase, b.cm.config, b.statedb)
 			blockContext.Random = &common.Hash{} // enable post-merge instruction set
 			evm := vm.NewEVM(blockContext, statedb, cm.config, vm.Config{})
 			ProcessParentBlockHash(b.header.ParentHash, evm)
