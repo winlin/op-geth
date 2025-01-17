@@ -162,7 +162,7 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle, isIsthmus bool) (common.Hash, c
 		}
 	}
 
-	stateRoot, err := statedb.Commit(0, false)
+	stateRoot, err := statedb.Commit(0, false, false)
 	if err != nil {
 		return common.Hash{}, common.Hash{}, err
 	}
@@ -199,7 +199,7 @@ func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database, isIsthmus bool)
 			statedb.SetState(addr, key, value)
 		}
 	}
-	stateRoot, err := statedb.Commit(0, false)
+	root, err := statedb.Commit(0, false, false)
 	if err != nil {
 		return common.Hash{}, common.Hash{}, err
 	}
@@ -209,12 +209,12 @@ func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database, isIsthmus bool)
 		storageRootMessagePasser = statedb.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
 	}
 	// Commit newly generated states into disk if it's not empty.
-	if stateRoot != types.EmptyRootHash {
-		if err := triedb.Commit(stateRoot, true); err != nil {
+	if root != types.EmptyRootHash {
+		if err := triedb.Commit(root, true); err != nil {
 			return common.Hash{}, common.Hash{}, err
 		}
 	}
-	return stateRoot, storageRootMessagePasser, nil
+	return root, storageRootMessagePasser, nil
 }
 
 func getGenesisState(db ethdb.Database, blockhash common.Hash) (alloc types.GenesisAlloc, err error) {
