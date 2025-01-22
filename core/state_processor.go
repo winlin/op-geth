@@ -74,7 +74,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		signer  = types.MakeSigner(p.config, header.Number, header.Time)
 	)
 	// Apply pre-execution system calls.
-	var tracingStateDB = vm.StateDB(statedb)
+	tracingStateDB := vm.StateDB(statedb)
 	if hooks := cfg.Tracer; hooks != nil {
 		tracingStateDB = state.NewHookedState(statedb, hooks)
 	}
@@ -146,7 +146,7 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	evm.SetTxContext(txContext)
 
 	nonce := tx.Nonce()
-	if msg.IsDepositTx && config.IsOptimismRegolith(evm.Context.Time) {
+	if msg.IsDepositTx && evm.ChainConfig().IsOptimismRegolith(evm.Context.Time) {
 		nonce = statedb.GetNonce(msg.From)
 	}
 
@@ -165,7 +165,7 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	}
 	*usedGas += result.UsedGas
 
-	return MakeReceipt(evm, result, statedb, blockNumber, blockHash, tx, *usedGas, root, config, nonce), nil
+	return MakeReceipt(evm, result, statedb, blockNumber, blockHash, tx, *usedGas, root, evm.ChainConfig(), nonce), nil
 }
 
 // MakeReceipt generates the receipt object for a transaction given its execution result.
@@ -221,8 +221,8 @@ func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, b
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(evm *vm.EVM, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
-	return ApplyTransactionExtended(evm, gp, statedb, header, tx, usedGas, cfg, nil)
+func ApplyTransaction(evm *vm.EVM, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64) (*types.Receipt, error) {
+	return ApplyTransactionExtended(evm, gp, statedb, header, tx, usedGas, nil)
 }
 
 type ApplyTransactionOpts struct {
