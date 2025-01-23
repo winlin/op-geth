@@ -652,7 +652,6 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Blo
 	var err error
 	if len(g.Alloc) == 0 {
 		if g.StateHash == nil {
-			log.Warn("Empty genesis alloc, and no 'stateHash' override was set")
 			stateRoot = types.EmptyRootHash // default to the hash of the empty state. Some unit-tests rely on this.
 		} else {
 			stateRoot = *g.StateHash
