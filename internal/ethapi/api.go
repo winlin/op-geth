@@ -985,7 +985,7 @@ func (api *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs,
 		}
 	}
 
-	gas, _, err := DoEstimateGas(ctx, api.b, args, bNrOrHash, overrides, api.b.RPCGasCap())
+	gas, _, err := DoEstimateGas(ctx, api.b, args, bNrOrHash, overrides, blockOverrides, api.b.RPCGasCap())
 	return gas, err
 }
 
@@ -994,7 +994,7 @@ type estimateGasResult struct {
 	Logs []*types.Log
 }
 
-func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (*estimateGasResult, error) {
+func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *override.StateOverride, blockOverrides *override.BlockOverrides) (*estimateGasResult, error) {
 	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
@@ -1018,7 +1018,7 @@ func (s *BlockChainAPI) EstimateGasWithLog(ctx context.Context, args Transaction
 		}
 	}
 
-	gas, logs, err := DoEstimateGas(ctx, s.b, args, bNrOrHash, overrides, s.b.RPCGasCap())
+	gas, logs, err := DoEstimateGas(ctx, s.b, args, bNrOrHash, overrides, blockOverrides, s.b.RPCGasCap())
 	return &estimateGasResult{
 		Gas:  gas,
 		Logs: logs,
