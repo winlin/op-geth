@@ -80,7 +80,7 @@ func (bc *testBlockChain) CurrentBlock() *types.Header {
 }
 
 func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
-	return types.NewBlock(bc.CurrentBlock(), nil, nil, trie.NewStackTrie(nil))
+	return types.NewBlock(bc.CurrentBlock(), nil, nil, trie.NewStackTrie(nil), types.DefaultBlockConfig)
 }
 
 func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, error) {
@@ -148,11 +148,10 @@ func createMiner(t *testing.T) *Miner {
 	chainDB := rawdb.NewMemoryDatabase()
 	triedb := triedb.NewDatabase(chainDB, nil)
 	genesis := minerTestGenesisBlock(15, 11_500_000, testBankAddress)
-	chainConfig, _, err := core.SetupGenesisBlock(chainDB, triedb, genesis)
+	chainConfig, _, _, err := core.SetupGenesisBlock(chainDB, triedb, genesis)
 	if err != nil {
 		t.Fatalf("can't create new chain config: %v", err)
 	}
-
 	// Create consensus engine
 	engine := clique.New(chainConfig.Clique, chainDB)
 	// Create Ethereum backend
